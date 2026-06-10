@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.venv/
+venv/
+
+# Local debugging artifacts
+.temp/
+*.hprof
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Environment & secrets
+.env
+config/api/*.txt
+
+# Knowledge base data (large binary files)
+data/knowledge/rag_chroma_db/
+
+# Minecraft mod build artifacts
+projects/minecraft-mod-mcp/packages/mods/*/fabric/run/
+projects/minecraft-mod-mcp/packages/mods/*/forge/run/
+projects/minecraft-mod-mcp/packages/mods/*/neoforge/run/
+projects/minecraft-mod-mcp/**/build/
+projects/minecraft-mod-mcp/**/.gradle/
+projects/minecraft-mod-mcp/**/bin/
+projects/minecraft-mod-mcp/**/crash-reports/
+projects/minecraft-mod-mcp/**/node_modules/
+
+# Mineflayer
+projects/mineflayer-bot/node_modules/
+
+# Old directories (migrated)
+/scripts/
+/src/
+/api/
+/mineflayer_bot/
+/minecraft-mod-mcp/
+
+# OS
+.DS_Store
+Thumbs.db

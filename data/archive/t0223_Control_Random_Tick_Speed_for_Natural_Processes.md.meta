@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0223",
+  "original": "t0223_Control_Random_Tick_Speed_for_Natural_Processes.md",
+  "source": "techniques",
+  "content": "---\nid: t0223\ntitle: 控制随机刻速度以加速或暂停自然过程\ntitle_en: Control Random Tick Speed for Natural Processes\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-commands/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"performance\", \"environment\", \"game-design\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n通过调整 randomTickSpeed 可以加速作物生长、树叶腐烂等随机刻事件，或设为 0 完全暂停，用于精确控制环境变化。\n\n## 代码示例\n\n```mcfunction\ngamerule randomTickSpeed 0\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\n该规则控制每个游戏刻每个区块中随机刻的区块数。增加该值加速随机事件（如植物生长、冰融化），设为 0 则完全禁用，适合需要静态环境的场景。\n\n## 注意事项\n\n- 常见误解：开发者认为随机刻速度只影响性能，不知道它可以作为游戏机制调节工具。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.774921"
+}

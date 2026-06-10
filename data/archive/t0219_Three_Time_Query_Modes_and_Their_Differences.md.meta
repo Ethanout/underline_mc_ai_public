@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0219",
+  "original": "t0219_Three_Time_Query_Modes_and_Their_Differences.md",
+  "source": "techniques",
+  "content": "---\nid: t0219\ntitle: 时间查询的三种模式差异\ntitle_en: Three Time Query Modes and Their Differences\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-commands/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"time\", \"query\", \"scoreboard\", \"day-night-cycle\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\ntime query的daytime、gametime、day返回不同时间尺度，玩家常混淆daytime（当天刻数）和gametime（总刻数）的用途。\n\n## 代码示例\n\n```mcfunction\nexecute if score time <namespace> matches 6000.. run say 已过正午\n# 需先执行：scoreboard objectives add <namespace> dummy\n# 再执行：execute store result score time <namespace> run time query daytime\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\ndaytime返回当前时间在一天内的偏移（0=日出，6000=正午，12000=日落，18000=午夜），gametime返回世界总运行刻数（包括睡觉跳过的时间），day返回floor(gametime/24000)。三者用于不同场景的条件判断。\n\n## 注意事项\n\n- 常见误解：玩家可能认为daytime返回世界总时间，或day返回天数（整数），实际daytime是0-24000的当天刻数，gametime是自世界创建的总刻数，day是已过游戏天数（向下取整）。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.771539"
+}

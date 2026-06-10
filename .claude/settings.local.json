@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:9876/api/ping)",
+      "Bash(curl -s -X POST http://localhost:9876/api/cmd -H \"Content-Type: application/json\" -d \"{\\\\\"command\\\\\":\\\\\"get_player_info\\\\\"}\")",
+      "Bash(curl -s -X POST http://localhost:9876/api/cmd -H \"Content-Type: application/json\" -d '{\"cmd\":\"get_player_info\"}')",
+      "Bash(curl -s -X POST http://localhost:9876/api/cmd -H \"Content-Type: application/json\" -d '{\"cmd\":\"screenshot\"}' -o \"c:\\\\重要的资料\\\\项目\\\\underline_mc_ai\\\\test_before.png\")"
+    ]
+  }
+}

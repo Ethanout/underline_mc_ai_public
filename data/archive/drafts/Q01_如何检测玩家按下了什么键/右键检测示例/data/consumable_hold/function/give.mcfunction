@@ -1,0 +1,1 @@
+give @s firework_star[consumable={animation:"none",has_consume_particles:false,consume_seconds:2,sound:{sound_id:"none"}},custom_data={sample:1b,sample_type:2},use_remainder={id:firework_star,components:{custom_data:{sample_remainder:1b}}},custom_name='{"text": "consumable组件：长按蓄力"}',lore=['{"text": "长按2秒触发一次"}','{"text": "会消耗物品"}','{"text": "用返还组件返回一个物品用于检测换回"}']]

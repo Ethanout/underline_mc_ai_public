@@ -1,0 +1,26 @@
+{
+  "type": "technique",
+  "id": "t0487",
+  "original": "t0487_floor_crafting_with_nbt.md",
+  "source": "techniques",
+  "content": "---\nid: t0487\ntitle: \"地板合成NBT\"\ntitle_en: \"floor_crafting_with_nbt\"\nlayer: technique\nsource_url: \"https://minecraftcommands.github.io/wiki/questions/customcrafting\"\nsource_type: \"mcc_wiki\"\nsource_issue: \"questions/customcrafting\"\nversion_min: \"1.13\"\nversion_max: \"\"\nwiki_covers_this: false\nconfidence: medium\ntags: [\"custom_crafting\", \"item_detection\", \"floor_crafting\", \"nbt\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n利用物品实体Age标签和store success机制，在地面上通过检测多个带NBT的物品实体实现自定义合成。\n\n## 代码示例\n\n```mcfunction\n# 1.13 - 1.20.4 版本示例（无动画）\n# Command block / tick function\nexecute at @a as @e[type=item,distance=..6,nbt={OnGround:true,Item:{id:\"minecraft:emerald\",Count:2b,tag:{some:true}}}] at @s store success entity @s Age short 6000 store success entity @e[type=item,distance=..0.5,limit=1,nbt={OnGround:true,Item:{id:\"minecraft:diamond\",Count:1b,tag:{custom:true}}}] Age short 6000 store success entity @e[type=item,distance=..0.5,limit=1,nbt={OnGround:true,Item:{id:\"minecraft:redstone\",Count:5b,tag:{data:true}}}] Age short 6000 run summon item ~ ~ ~ {Item:{id:\"minecraft:ender_eye\",Count:1b,tag:{custom_result:true,display:{Name:'{\"text\":\"Some Custom Result\",\"italic\":false}'}}}}\n\n# 1.19.4 - 1.20.4 版本示例（含动画）\n# Command blocks / tick function\nexecute at @a as @e[type=item,distance=..6,nbt={OnGround:true,Item:{id:\"minecraft:emerald\",Count:2b,tag:{some:true}}}] at @s if block ~ ~ ~ air store success entity @s Age short 6000 store success entity @e[type=item,distance=..0.5,limit=1,nbt={OnGround:true,Item:{id:\"minecraft:diamond\",Count:1b,tag:{custom:true}}}] Age short 6000 store success entity @e[type=item,distance=..0.5,limit=1,nbt={OnGround:true,Item:{id:\"minecraft:redstone\",Count:5b,tag:{data:true}}}] Age short 6000 summon area_effect_cloud store success score @s craft_anim run summon item ~ ~ ~ {Fire:20s,Item:{id:\"minecraft:shulker_box\",Count:1b,tag:{BlockEntityTag:{Items:[{Slot:0b,id:\"minecraft:ender_eye\",Count:1b,tag:{display:{Name:'{\"text\":\"Some Custom Result\",\"italic\":false}'}}}]}}}}\nexecute at @e[type=area_effect_cloud,scores={craft_anim=1}] run particle minecraft:reverse_portal ~ ~.2 ~ 0 0 0 0.025 100\nexecute at @e[type=area_effect_cloud,scores={craft_anim=1}] run playsound minecraft:entity.evoker.prepare_wololo neutral @a\n\n# 1.20.5+ 版本示例（含动画）\n# Command blocks / tick function\nexecute at @a as @e[type=item,distance=..6,nbt={OnGround:true,Item:{id:\"minecraft:emerald\",count:2,components:{\"minecraft:custom_data\":{some:true}}}}] at @s if block ~ ~ ~ air store success entity @s Age short 6000 store success entity @e[type=item,distance=..0.5,limit=1,nbt={OnGround:true,Item:{id:\"minecraft:diamond\",count:1,components:{\"minecraft:custom_data\":{custom:true}}}}] Age short 6000 store success entity @e[type=item,distance=..0.5,limit=1,nbt={OnGround:true,Item:{id:\"minecraft:redstone\",count:5,components:{\"minecraft:custom_data\":{data:true}}}}] Age short 6000 summon area_effect_cloud store success score @s craft_anim run summon item ~ ~ ~ {Fire:20s,Item:{id:\"minecraft:shulker_box\",count:1,components:{\"minecraft:container\":[{slot:0,item:{id:\"minecraft:ender_eye\",count:1,components:{\"minecraft:item_name\":'{\"text\":\"Some Custom Result\"}'}}}]}}}\nexecute at @e[type=area_effect_cloud,scores={craft_anim=1}] run particle minecraft:reverse_portal ~ ~.2 ~ 0 0 0 0.025 100\nexecute at @e[type=area_effect_cloud,scores={craft_anim=1}] run playsound minecraft:entity.evoker.prepare_wololo neutral @a\n```\n\n## 文件结构\n\n（待补充）\n\n## 用法\n\n将命令放入命令方块或tick函数中运行。构建完数据包/放置命令方块后，玩家将所需物品丢在地上，物品会自动被检测并消耗，生成合成结果。\n\n## 使用场景\n\n['需要支持NBT自定义物品作为合成原料和结果的简单合成系统', '快速原型验证，每个配方只需一个命令方块', '不适合需要精确UI交互或大量配方的场景（命令长度受限）']\n\n## 机制原理\n\n该技术利用`execute store success entity`链式检测多个物品实体。核心机制是：以玩家为中心选择第一个原料物品实体，然后在其位置依次检测其他原料物品（通过`distance=..0.5`限制范围）。每次`store success entity @s Age short 6000`将检测成功的结果写入该物品的Age标签，Age乘以6000会使物品立即消失（Age达到6000时物品被清除）。如果所有原料检测都成功，则执行`run`后的命令生成合成结果。动画部分使用`area_effect_cloud`存储成功分数，然后通过后续命令播放粒子和音效。使用`Fire:20s`的潜影盒作为结果容器，可以一次给予玩家多个物品，且潜影盒被火焰烧毁时会掉落其内容物。\n\n## 注意事项\n\n- 强烈建议所有自定义原料使用自定义标签（custom tag）来缩短命令长度并提高可读性\n- 每个原料的选择器必须指定`limit=1`和`distance=..0.5`\n- 建议添加`OnGround:true`检查，确保物品落地后才触发合成\n- 如果使用潜影盒动画，需要检查当前方块是否为空气，防止在水中合成时潜影盒被熄灭\n- 动画相关的命令必须严格放在所有配方命令之后\n- 单个命令长度限制为32k字符，因此配方原料数量受此限制\n- 1.20.5+版本中NBT标签被组件（components）取代，命令格式有变化\n",
+  "index_entry": {
+    "file": "entries/t0487_floor_crafting_with_nbt.md",
+    "title_zh": "地板合成NBT",
+    "title_en": "floor_crafting_with_nbt",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/customcrafting",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "custom_crafting",
+      "item_detection",
+      "floor_crafting",
+      "nbt"
+    ],
+    "verified_in_game": false
+  },
+  "purge_reason": "duplicate_replaced_by_newer_extraction",
+  "purged_at": "2026-06-05T17:03:16.679338"
+}

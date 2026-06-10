@@ -1,0 +1,26 @@
+{
+  "type": "technique",
+  "id": "t0510",
+  "original": "t0510_raycast_without_entity.md",
+  "source": "techniques",
+  "content": "---\nid: t0510\ntitle: \"无实体射线检测\"\ntitle_en: \"raycast_without_entity\"\nlayer: technique\nsource_url: \"https://minecraftcommands.github.io/wiki/questions/raycast\"\nsource_type: \"mcc_wiki\"\nsource_issue: \"questions/raycast\"\nversion_min: \"1.13\"\nversion_max: \"\"\nwiki_covers_this: false\nconfidence: medium\ntags: [\"raycast\", \"entityless\", \"local-coordinates\", \"execution-context\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n利用 anchored eyes + positioned ^ ^ ^ + anchored feet 的上下文保留特性，可以在不生成实体的单 tick 内完成射线检测\n\n## 代码示例\n\n```mcfunction\n# function example:start_ray\nscoreboard players set @s ray_steps 50\nscoreboard players set @s ray_success 0\nfunction example:ray\n\n# function example:ray\nexecute unless block ~ ~ ~ minecraft:air run function example:hit_block\nscoreboard players remove @s ray_steps 1\nexecute if score @s ray_steps matches 1.. if score @s ray_success matches 0 positioned ^ ^ ^0.1 run function example:ray\n\n# function example:hit_block\nscoreboard players set @s ray_success 1\nsetblock ~ ~ ~ stone\n```\n\n## 文件结构\n\n- data/example/functions/start_ray.mcfunction\n- data/example/functions/ray.mcfunction\n- data/example/functions/hit_block.mcfunction\n\n## 用法\n\n以任意实体（如玩家）的身份执行 `function example:start_ray` 即可触发射线检测。射线从执行者眼部出发，沿视线方向每 0.1 格步进一次，直到碰到非空气方块或达到最大步数（50步=5格）。命中后会在命中位置放置石头。\n\n## 使用场景\n\n['检测玩家视线指向的方块（如交互、瞄准系统）', '在单 tick 内快速判断视线路径上是否有特定方块', '不适合需要跨多 tick 持续追踪的射线（如激光动画），应改用实体法']\n\n## 机制原理\n\n该技术的核心是利用 Minecraft 命令执行上下文（execution context）的保留特性。首先通过 `execute as <shooter> at @s anchored eyes` 将执行位置提升到眼睛高度，然后使用 `positioned ^ ^ ^` 将位置锚定到局部坐标原点（即眼睛位置），紧接着 `anchored feet` 将锚点移回脚部。由于 Minecraft 在 `positioned` 之后会保留当前绝对位置，而 `anchored feet` 只是改变后续 `^` 坐标的参考系，因此执行位置被固定在眼睛高度，但后续的 `^ ^ ^` 移动以脚部为参考系。这样每次步进 `positioned ^ ^ ^0.1` 时，实际移动的是眼睛位置沿视线方向前进 0.1 格，而不会因为锚点重新计算眼睛高度导致位置偏移。步进循环通过递归调用函数实现，每次步进前检查当前方块是否为目标方块（如非空气），命中则执行命中函数并设置成功标志，同时通过计分板控制最大步数防止无限循环。\n\n## 注意事项\n\n- 步长 0.1 格是精度与性能的折中，可根据需要调整\n- 最大步数（50步=5格）对应玩家默认交互距离，可根据场景修改\n- 该方法仅能在单 tick 内完成，不能跨 tick 持续追踪\n- `anchored feet` 在较新版本中可能不应使用（原文表述需核实）\n- 1.20.2+ 可使用 `return` 简化逻辑，无需 `ray_success` 计分板\n",
+  "index_entry": {
+    "file": "entries/t0510_raycast_without_entity.md",
+    "title_zh": "无实体射线检测",
+    "title_en": "raycast_without_entity",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/raycast",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "raycast",
+      "entityless",
+      "local-coordinates",
+      "execution-context"
+    ],
+    "verified_in_game": false
+  },
+  "purge_reason": "duplicate_replaced_by_newer_extraction",
+  "purged_at": "2026-06-05T17:03:16.696172"
+}

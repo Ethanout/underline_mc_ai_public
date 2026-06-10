@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0280",
+  "original": "t0280_Function_Tags_as_Module_API.md",
+  "source": "techniques",
+  "content": "---\nid: t0280\ntitle: 函数标签作为模块API\ntitle_en: Function Tags as Module API\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-datapack/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"function-tag\", \"api\", \"modularity\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n使用函数标签（function tag）作为模块的公共入口点，允许调用者通过标签名调用，而无需关心具体实现函数名。\n\n## 代码示例\n\n```mcfunction\njson\n// data/mypack/tags/function/my_module.json\n{\n  \"values\": [\n    \"mypack:api/my_module\",\n    \"mypack:internal/_setup\"\n  ]\n}\n# 调用者\nfunction #mypack:my_module\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\n在数据包的 tags/function 目录下定义标签，其 values 列表包含公共API函数和可选的初始化函数。调用者使用 function #namespace:tag_name 即可触发整个模块。\n\n## 注意事项\n\n- 常见误解：开发者直接调用具体函数名，导致模块内部重构时破坏外部依赖。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.805603"
+}

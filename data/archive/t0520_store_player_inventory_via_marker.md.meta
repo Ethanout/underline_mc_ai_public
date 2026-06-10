@@ -1,0 +1,27 @@
+{
+  "type": "technique",
+  "id": "t0520",
+  "original": "t0520_store_player_inventory_via_marker.md",
+  "source": "techniques",
+  "content": "---\nid: t0520\ntitle: \"标记实体存背包\"\ntitle_en: \"store_player_inventory_via_marker\"\nlayer: technique\nsource_url: \"https://minecraftcommands.github.io/wiki/questions/storeinventory\"\nsource_type: \"mcc_wiki\"\nsource_issue: \"questions/storeinventory\"\nversion_min: \"1.17\"\nversion_max: \"\"\nwiki_covers_this: false\nconfidence: medium\ntags: [\"inventory\", \"marker\", \"nbt\", \"storage\", \"entity\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n利用 marker 实体可以存储任意 NBT 数据的特性，将玩家背包完整复制到 marker 的 data 字段中，实现离线级背包存储。\n\n## 代码示例\n\n```mcfunction\n# function example:new_marker\n# summon marker\nsummon marker ~ ~ ~ {Tags:[\"inv_store\",\"inv_new\"]}\n\n# link marker to player    \nscoreboard players operation @e[tag=inv_new] id = @s id\n\n# copy Inventory of player to marker data.Inventory\ndata modify entity @e[tag=inv_new,limit=1] data.Inventory set from from entity @s Inventory\n\n# remove the new tag to get ready for the next player\ntag @e[tag=inv_new] remove inv_new\n```\n\n## 文件结构\n\n- data/example/functions/new_marker.mcfunction\n\n## 用法\n\n以玩家身份运行 `function example:new_marker`（需先建立 scoreboard ID 系统）。执行后会在当前位置生成一个 marker 实体，其 data.Inventory 字段保存了该玩家的完整背包数据，并通过 id 分数与玩家绑定。\n\n## 使用场景\n\n['需要将玩家背包保存到实体上，以便后续在任意时间、任意维度归还（如小游戏切换阶段、临时传送场景）', '需要为每个玩家独立保存背包，且希望实体随区块加载/卸载自动管理生命周期', '不适合需要频繁读写大量玩家背包的场景（性能开销较大）']\n\n## 机制原理\n\nmarker 实体是 Minecraft 中一种特殊的实体，它没有碰撞箱、没有渲染、没有 AI，但可以像其他实体一样拥有自定义 NBT 数据。通过 `data modify entity` 命令，可以将玩家的 `Inventory` NBT 数组完整复制到 marker 的 `data.Inventory` 字段中。由于 marker 实体可以被 `scoreboard players operation` 通过 ID 系统与玩家绑定，因此可以实现玩家与背包数据的持久化关联。与使用 `storage` 相比，marker 实体的优势在于它会随区块加载/卸载自动管理，且天然支持按实体 ID 查询，无需额外维护列表结构。\n\n## 注意事项\n\n- 执行该函数时建议在出生点区块或确保加载的区块中执行，以保证 marker 实体保持加载\n- 需要预先建立 scoreboard ID 系统（如 `id` 计分板）来关联玩家和 marker\n- marker 实体在 1.17+ 可用，1.20.5+ 中行为未变化\n- 此方法仅存储背包数据，归还时需要额外实现（见文章后续部分）\n",
+  "index_entry": {
+    "file": "entries/t0520_store_player_inventory_via_marker.md",
+    "title_zh": "标记实体存背包",
+    "title_en": "store_player_inventory_via_marker",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/storeinventory",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.17",
+    "tags": [
+      "inventory",
+      "marker",
+      "nbt",
+      "storage",
+      "entity"
+    ],
+    "verified_in_game": false
+  },
+  "purge_reason": "duplicate_replaced_by_newer_extraction",
+  "purged_at": "2026-06-05T17:03:16.704063"
+}

@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0323",
+  "original": "t0323_Complete_Custom_Enchantment_Implementation.md",
+  "source": "techniques",
+  "content": "---\nid: t0323\ntitle: 自定义附魔完整实现\ntitle_en: Complete Custom Enchantment Implementation\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-enchantment/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"custom enchantment\", \"effect component\", \"post_attack\", \"damage modifier\", \"life steal\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n通过组合多个效果组件（post_attack和damage），可以在一个附魔中同时实现伤害加成和生命偷取效果，而无需使用函数或计分板。\n\n## 代码示例\n\n```mcfunction\n{\n  \"effects\": {\n    \"minecraft:post_attack\": [\n      {\n        \"enchanted\": \"attacker\",\n        \"affected\": \"attacker\",\n        \"effect\": {\n          \"type\": \"minecraft:apply_mob_effect\",\n          \"to_apply\": {\n            \"id\": \"minecraft:regeneration\",\n            \"duration\": 60,\n            \"amplifier\": { \"type\": \"minecraft:linear\", \"base\": 0, \"per_level_above_first\": 0 }\n          }\n        }\n      }\n    ],\n    \"minecraft:damage\": [\n      {\n        \"effect\": {\n          \"type\": \"minecraft:add\",\n          \"value\": { \"type\": \"minecraft:linear\", \"base\": 1.0, \"per_level_above_first\": 0.5 }\n        }\n      }\n    ]\n  }\n}\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\n在附魔JSON中，effects字段可以包含多个效果类型，如minecraft:post_attack用于攻击后触发效果，minecraft:damage用于修改伤害。每个效果可以独立配置条件和参数，通过线性公式实现等级缩放。\n\n## 注意事项\n\n- 常见误解：开发者常认为自定义附魔必须通过数据包函数或计分板来实现复杂效果，实际上可以直接在附魔定义中组合多个效果组件。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.830630"
+}

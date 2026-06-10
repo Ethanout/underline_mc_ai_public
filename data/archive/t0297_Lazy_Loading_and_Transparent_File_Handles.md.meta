@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0297",
+  "original": "t0297_Lazy_Loading_and_Transparent_File_Handles.md",
+  "source": "techniques",
+  "content": "---\nid: t0297\ntitle: 惰性加载与透明文件句柄\ntitle_en: Lazy Loading and Transparent File Handles\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-datapack/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"beet\", \"lazy-loading\", \"file-handle\", \"performance\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\nBeet 的文件系统是惰性加载的，文件在访问前不会实际读取，且文件句柄在未加载、序列化、反序列化状态间自动转换，无需手动管理。\n\n## 代码示例\n\n```mcfunction\n# 直接访问函数，Beet 自动加载\nfunc = ctx.data.functions[\"demo:foo\"]\n# 修改后自动标记为需要重新序列化\nfunc.lines.append(\"say modified\")\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\nBeet 使用文件句柄抽象，文件在首次访问（如 `pack.functions[\"demo:foo\"]`）时才从磁盘加载。句柄状态自动在未加载（Unloaded）、序列化（Serialized）、反序列化（Deserialized）间转换，开发者始终以 Python 对象形式操作，无需关心底层文件格式。\n\n## 注意事项\n\n- 常见误解：开发者通常认为构建工具会立即加载所有文件，导致大型项目启动缓慢，且需要手动处理文件格式转换。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.810666"
+}

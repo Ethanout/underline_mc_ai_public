@@ -1,0 +1,54 @@
+.gradle/
+.jdks/
+.kotlin/
+build/
+bin/
+out/
+.maven-local/
+neoform-cache/
+run/
+crash-reports/
+
+*.class
+*.hprof
+*.log
+
+__pycache__/
+screenshots/
+test_results.json
+build-report.json
+build-error.log
+gradle.properties
+rpc_*
+.cache/
+target/
+.bf
+.build_done
+.build_flag
+.minecraft/
+tmp_fbo_extract/
+mcp_debug.log
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+
+# Misc
+node_modules/
+*.tmp
+*.swp
+*~
+dist/
+
+# Auto-generated TS bindings (ts-rs)
+/packages/launcher/shared/*/bindings/
+/packages/launcher/frontend/src/bindings/

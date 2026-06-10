@@ -1,0 +1,2512 @@
+{
+  "t0186": {
+    "title_zh": "WASD shfit ctrl space按键检测",
+    "title_en": "key_predicate_input_detection",
+    "source_type": "manual",
+    "wiki_covers_this": false,
+    "confidence": "high",
+    "tags": [
+      "predicate",
+      "input",
+      "player",
+      "movement"
+    ],
+    "version_min": "1.21",
+    "source_url": "https://modrinth.com/datapack/wasd-detection"
+  },
+  "t0187": {
+    "title_zh": "逻辑条件组合",
+    "title_en": "logical_condition_combination",
+    "source_type": "mcf_skill",
+    "wiki_covers_this": false,
+    "tags": [
+      "advancement",
+      "logic",
+      "conditions"
+    ],
+    "version_min": "1.13",
+    "source_url": "https://github.com/Alumopper/mcf-skill/blob/main/mcf-advancement/SKILL.md"
+  },
+  "t0188": {
+    "title_zh": "F键检测",
+    "title_en": "f_key_detection",
+    "source_type": "manual",
+    "wiki_covers_this": false,
+    "tags": [
+      "input",
+      "fkey",
+      "advancement",
+      "inventory_changed",
+      "custom_data",
+      "storage"
+    ],
+    "version_min": "1.20.5",
+    "source_url": ""
+  },
+  "t0193": {
+    "file": "entries/t0193_custom_smithing_trim_pattern.md",
+    "title_zh": "自定义锻造纹饰",
+    "title_en": "custom_smithing_trim_pattern",
+    "source_url": "https://datapack.wiki/guide/adding-new-features/smithing-trims",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.20",
+    "tags": [
+      "datapack",
+      "resourcepack",
+      "smithing_trim",
+      "custom_content"
+    ],
+    "verified_in_game": false
+  },
+  "t0194": {
+    "file": "entries/t0194_datadriven_mob_variants.md",
+    "title_zh": "数据驱动生物变种",
+    "title_en": "data-driven_mob_variants",
+    "source_url": "https://datapack.wiki/guide/adding-new-features/mob-variants",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.21.5",
+    "tags": [
+      "data-driven",
+      "mob-variant",
+      "resource-pack",
+      "datapack",
+      "1.21.5"
+    ],
+    "verified_in_game": false
+  },
+  "t0197": {
+    "file": "entries/t0197_worldclock_based_cooldown.md",
+    "title_zh": "世界时钟冷却",
+    "title_en": "worldclock_based_cooldown",
+    "source_url": "https://datapack.wiki/guide/cooldown/worldclock",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.20.5",
+    "tags": [
+      "world_clock",
+      "cooldown",
+      "performance",
+      "scoreboard",
+      "time"
+    ],
+    "verified_in_game": false
+  },
+  "t0199": {
+    "file": "entries/t0199_benchmark_recursive_function.md",
+    "title_zh": "递归函数基准测试",
+    "title_en": "benchmark_recursive_function",
+    "source_url": "https://datapack.wiki/guide/performance/how-to-measure",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.21.8",
+    "tags": [
+      "performance",
+      "benchmark",
+      "recursive_function",
+      "world_border"
+    ],
+    "verified_in_game": false
+  },
+  "t0204": {
+    "file": "entries/t0204_right_click_detection_methods.md",
+    "title_zh": "右键检测方法",
+    "title_en": "right_click_detection_methods",
+    "source_url": "https://datapack.wiki/guide/right-click",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.20.5",
+    "tags": [
+      "right_click",
+      "detection",
+      "interaction",
+      "consumable",
+      "carrot_on_a_stick",
+      "eye_of_ender"
+    ],
+    "verified_in_game": false
+  },
+  "t0206": {
+    "file": "entries/t0206_loot_table_random_number.md",
+    "title_zh": "战利品表随机数",
+    "title_en": "loot_table_random_number",
+    "source_url": "https://datapack.wiki/guide/nbt-and-scores/random-numbers",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "random",
+      "loot_table",
+      "legacy"
+    ],
+    "verified_in_game": false
+  },
+  "t0207": {
+    "file": "entries/t0207_tick_based_scoreboard_cooldown.md",
+    "title_zh": "计分板冷却",
+    "title_en": "tick_based_scoreboard_cooldown",
+    "source_url": "https://datapack.wiki/guide/cooldown/scoreboard",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.20.5",
+    "tags": [
+      "cooldown",
+      "scoreboard",
+      "tick",
+      "return",
+      "execute"
+    ],
+    "verified_in_game": false
+  },
+  "t0208": {
+    "file": "entries/t0208_Trigger_Objective_Enable_Mechanism.md",
+    "title_zh": "触发器目标启用机制",
+    "title_en": "Trigger_Objective_Enable_Mechanism",
+    "layer": "technique",
+    "source_url": "https://github.com/Alumopper/mcf-skill/blob/main/mcf-commands/SKILL.md",
+    "source_type": "mcf_skill",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "trigger",
+      "player-input",
+      "scoreboard"
+    ],
+    "verified_in_game": false
+  },
+  "t0209": {
+    "file": "entries/t0209_worldclock_based_cooldown.md",
+    "title_zh": "世界时钟冷却",
+    "title_en": "worldclock_based_cooldown",
+    "source_url": "https://datapack.wiki/guide/cooldown",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "cooldown",
+      "performance",
+      "worldclock",
+      "scoreboard"
+    ],
+    "verified_in_game": false
+  },
+  "t0211": {
+    "file": "entries/t0211_eye_of_ender_rc_detection.md",
+    "title_zh": "末影之眼右键检测",
+    "title_en": "eye_of_ender_rc_detection",
+    "source_url": "https://datapack.wiki/guide/right-click/eoe",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.20.5",
+    "tags": [
+      "right_click_detection",
+      "advancement",
+      "item_use",
+      "tick_based"
+    ],
+    "verified_in_game": false
+  },
+  "t0224": {
+    "file": "entries/t0224_item_components_intro.md",
+    "title_zh": "物品组件基础",
+    "title_en": "item_components_intro",
+    "source_url": "https://datapack.wiki/wiki/concepts/item-components",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.20.5",
+    "tags": [
+      "item",
+      "data-component",
+      "command"
+    ],
+    "verified_in_game": false
+  },
+  "t0226": {
+    "file": "entries/t0226_target_selector_argument_syntax.md",
+    "title_zh": "选择器参数语法",
+    "title_en": "target_selector_argument_syntax",
+    "source_url": "https://datapack.wiki/wiki/concepts/target-selectors",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.13",
+    "tags": [
+      "target-selector",
+      "command-syntax",
+      "filtering"
+    ],
+    "verified_in_game": false
+  },
+  "t0229": {
+    "file": "entries/t0229_item_components_in_recipe_output.md",
+    "title_zh": "配方输出组件化",
+    "title_en": "item_components_in_recipe_output",
+    "source_url": "https://datapack.wiki/guide/adding-new-features/custom-items/crafting",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.20.5",
+    "tags": [
+      "recipe",
+      "item_components",
+      "custom_item",
+      "1.20.5+"
+    ],
+    "verified_in_game": false
+  },
+  "t0233": {
+    "file": "entries/t0233_conditional_guard_for_slow_operations.md",
+    "title_zh": "条件守卫避免慢操作",
+    "title_en": "conditional_guard_for_slow_operations",
+    "source_url": "https://datapack.wiki/guide/performance/write-optimized-code",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "NBT",
+      "performance",
+      "conditional",
+      "tag"
+    ],
+    "verified_in_game": false
+  },
+  "t0234": {
+    "file": "entries/t0234_dialog_system_json_format.md",
+    "title_zh": "对话框JSON格式",
+    "title_en": "dialog_system_json_format",
+    "source_url": "https://datapack.wiki/wiki/files/dialogs",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.21.2",
+    "tags": [
+      "dialog",
+      "ui",
+      "json",
+      "command",
+      "interaction"
+    ],
+    "verified_in_game": false
+  },
+  "t0235": {
+    "file": "entries/t0235_hidden_advancement_event_listener.md",
+    "title_zh": "隐藏进度事件监听",
+    "title_en": "hidden_advancement_event_listener",
+    "source_url": "https://datapack.wiki/wiki/files/advancements",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.20.5",
+    "tags": [
+      "advancement",
+      "event_listener",
+      "hidden_mechanic",
+      "function"
+    ],
+    "verified_in_game": false
+  },
+  "t0236": {
+    "file": "entries/t0236_macro_function_substitution.md",
+    "title_zh": "宏函数替换",
+    "title_en": "macro_function_substitution",
+    "source_url": "https://datapack.wiki/wiki/files/functions",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.20.2",
+    "tags": [
+      "function",
+      "macro",
+      "dynamic-command",
+      "parameter-substitution"
+    ],
+    "verified_in_game": false
+  },
+  "t0238": {
+    "file": "entries/t0238_json_basics_for_datapacks.md",
+    "title_zh": "JSON基础",
+    "title_en": "json_basics_for_datapacks",
+    "source_url": "https://datapack.wiki/wiki/info/json",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.13",
+    "tags": [
+      "json",
+      "data-format",
+      "datapack-basics"
+    ],
+    "verified_in_game": false
+  },
+  "t0245": {
+    "file": "entries/t0245_trigger_objective_custom_command.md",
+    "title_zh": "触发器做自定义命令",
+    "title_en": "trigger_objective_custom_command",
+    "source_url": "https://datapack.wiki/wiki/nbt-scoreboards/scoreboards",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.13",
+    "tags": [
+      "scoreboard",
+      "trigger",
+      "custom_command",
+      "ui"
+    ],
+    "verified_in_game": false
+  },
+  "t0248": {
+    "file": "entries/t0248_stream_processing_framework.md",
+    "title_zh": "流处理框架",
+    "title_en": "stream_processing_framework",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202602/7/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20",
+    "tags": [
+      "stream",
+      "functional",
+      "macro",
+      "storage",
+      "batch"
+    ],
+    "verified_in_game": false
+  },
+  "t0249": {
+    "file": "entries/t0249_function_command_unlock.md",
+    "title_zh": "函数指令解锁",
+    "title_en": "function_command_unlock",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202605/4/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": true,
+    "version_min": "1.13",
+    "tags": [
+      "function",
+      "command",
+      "debug",
+      "map-design"
+    ],
+    "verified_in_game": false
+  },
+  "t0256": {
+    "file": "entries/t0256_obj_to_json_voxelization.md",
+    "title_zh": "OBJ转体素化",
+    "title_en": "obj_to_json_voxelization",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202512/1/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "OBJ转换",
+      "体素化",
+      "切线空间",
+      "模型优化",
+      "几何拟合"
+    ],
+    "verified_in_game": false
+  },
+  "t0258": {
+    "file": "entries/t0258_local_direction_velocity.md",
+    "title_zh": "局部方向速度",
+    "title_en": "local_direction_velocity",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202605/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.11",
+    "tags": [
+      "motion",
+      "velocity",
+      "local-coordinates",
+      "execute",
+      "scoreboard"
+    ],
+    "verified_in_game": false
+  },
+  "t0261": {
+    "file": "entries/t0261_nbt_numeric_suffix_variants.md",
+    "title_zh": "NBT数字后缀变体",
+    "title_en": "nbt_numeric_suffix_variants",
+    "source_url": "https://datapack.wiki/wiki/nbt-scoreboards/nbt",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.21.5",
+    "tags": [
+      "nbt",
+      "data-types",
+      "numbers",
+      "suffix",
+      "format"
+    ],
+    "verified_in_game": false
+  },
+  "t0265": {
+    "file": "entries/t0265_worldgen_feature_renaming.md",
+    "title_zh": "世界生成特征重命名",
+    "title_en": "worldgen_feature_renaming",
+    "source_url": "https://datapack.wiki/wiki/info/breaking-changes",
+    "source_type": "datapack_wiki",
+    "wiki_covers_this": true,
+    "version_min": "26.1",
+    "tags": [
+      "worldgen",
+      "breaking_change",
+      "feature",
+      "configuration"
+    ],
+    "verified_in_game": false
+  },
+  "t0267": {
+    "file": "entries/t0267_entity_pointer_via_origin.md",
+    "title_zh": "实体指针与origin",
+    "title_en": "entity_pointer_via_origin",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202604/3/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20",
+    "tags": [
+      "entity_pointer",
+      "origin",
+      "thrower",
+      "execute_on",
+      "uuid"
+    ],
+    "verified_in_game": false
+  },
+  "t0270": {
+    "file": "entries/t0270_uuid_to_binary_tags.md",
+    "title_zh": "UUID转二进制标签",
+    "title_en": "uuid_to_binary_tags",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202602/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "实体定位",
+      "二进制编码",
+      "标签系统",
+      "UUID"
+    ],
+    "verified_in_game": false
+  },
+  "t0271": {
+    "file": "entries/t0271_sequencer_helper_animation_framework.md",
+    "title_zh": "帧动画播放框架",
+    "title_en": "sequencer_helper_animation_framework",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202605/6/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20.5",
+    "tags": [
+      "帧动画",
+      "物品模型映射",
+      "数据包",
+      "custom_model_data",
+      "展示实体"
+    ],
+    "verified_in_game": false
+  },
+  "t0274": {
+    "file": "entries/t0274_negative_space_font.md",
+    "title_zh": "负空格字体技巧",
+    "title_en": "negative_space_font",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202605/2/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.16",
+    "tags": [
+      "字体",
+      "负空格",
+      "文字重叠",
+      "资源包"
+    ],
+    "verified_in_game": false
+  },
+  "t0281": {
+    "file": "entries/t0281_item_display_vertical_slab.md",
+    "title_zh": "展示架竖半砖",
+    "title_en": "item_display_vertical_slab",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202603/2/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.9",
+    "tags": [
+      "resourcepack",
+      "display_entity",
+      "vertical_slab",
+      "model_override"
+    ],
+    "verified_in_game": false
+  },
+  "t0292": {
+    "file": "entries/t0292_custom_ui_font_cooldown.md",
+    "title_zh": "字体冷却条UI",
+    "title_en": "custom_ui_font_cooldown",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202512/0/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "自定义UI",
+      "字体",
+      "title",
+      "冷却条",
+      "资源包"
+    ],
+    "verified_in_game": false
+  },
+  "t0295": {
+    "file": "entries/t0295_nbt_property_inheritance_ui.md",
+    "title_zh": "NBT属性继承控件",
+    "title_en": "nbt_property_inheritance_ui",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202604/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20",
+    "tags": [
+      "nbt",
+      "property_inheritance",
+      "ui_framework",
+      "floating_ui"
+    ],
+    "verified_in_game": false
+  },
+  "t0296": {
+    "file": "entries/t0296_head_base64_timestamp_extraction.md",
+    "title_zh": "头颅Base64时间戳提取",
+    "title_en": "head_base64_timestamp_extraction",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202512/4/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "base64解码",
+      "Unix时间戳",
+      "玩家头颅",
+      "数据提取",
+      "计分板"
+    ],
+    "verified_in_game": false
+  },
+  "t0304": {
+    "file": "entries/t0304_anvil_penalty_exponential.md",
+    "title_zh": "铁砧惩罚指数",
+    "title_en": "anvil_penalty_exponential",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202512/3/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": true,
+    "version_min": "1.21",
+    "tags": [
+      "铁砧",
+      "累积惩罚",
+      "经验惩罚",
+      "指数增长",
+      "数据包"
+    ],
+    "verified_in_game": false
+  },
+  "t0305": {
+    "file": "entries/t0305_halfing_method_right_click_detection.md",
+    "title_zh": "减半法右键检测",
+    "title_en": "halfing_method_right_click_detection",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202601/f/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "右键检测",
+      "整数除法",
+      "状态机",
+      "性能优化",
+      "计分板"
+    ],
+    "verified_in_game": false
+  },
+  "t0306": {
+    "file": "entries/t0306_execute_on_origin_unloaded_entity.md",
+    "title_zh": "on origin抓卸载实体",
+    "title_en": "execute_on_origin_unloaded_entity",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202509/4/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20.2",
+    "tags": [
+      "entity",
+      "unloaded_chunk",
+      "execute_on_origin",
+      "UUID",
+      "retrieval"
+    ],
+    "verified_in_game": false
+  },
+  "t0308": {
+    "file": "entries/t0308_spatial_inversion_subtraction.md",
+    "title_zh": "空间翻折减法",
+    "title_en": "spatial_inversion_subtraction",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202603/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.19.4",
+    "tags": [
+      "macro",
+      "coordinate",
+      "subtraction",
+      "rotation",
+      "vector"
+    ],
+    "verified_in_game": false
+  },
+  "t0314": {
+    "file": "entries/t0314_easing_function_parser.md",
+    "title_zh": "缓动函数解析器",
+    "title_en": "easing_function_parser",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202603/3/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.6",
+    "tags": [
+      "easing",
+      "parser",
+      "customization",
+      "animation"
+    ],
+    "verified_in_game": false
+  },
+  "t0320": {
+    "file": "entries/t0320_menu_blur_radius_fallback.md",
+    "title_zh": "模糊半径回退机制",
+    "title_en": "menu_blur_radius_fallback",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202512/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.10",
+    "tags": [
+      "着色器",
+      "后处理",
+      "模糊",
+      "全局量"
+    ],
+    "verified_in_game": false
+  },
+  "t0321": {
+    "file": "entries/t0321_cullface_connected_textures.md",
+    "title_zh": "面剔除连接纹理",
+    "title_en": "cullface_connected_textures",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202605/3/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.11",
+    "tags": [
+      "模型",
+      "面剔除",
+      "连接纹理",
+      "cullface",
+      "方块模型"
+    ],
+    "verified_in_game": false
+  },
+  "t0324": {
+    "file": "entries/t0324_execution_anchor_vs_entity_anchor.md",
+    "title_zh": "锚点分离机制",
+    "title_en": "execution_anchor_vs_entity_anchor",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202509/6/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.19",
+    "tags": [
+      "命令机制",
+      "锚点",
+      "朝向",
+      "execute"
+    ],
+    "verified_in_game": false
+  },
+  "t0327": {
+    "file": "entries/t0327_conditional_event_chain.md",
+    "title_zh": "条件事件链",
+    "title_en": "conditional_event_chain",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202509/1/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.8",
+    "tags": [
+      "conditional",
+      "event_chain",
+      "interaction",
+      "predicate",
+      "state_machine"
+    ],
+    "verified_in_game": false
+  },
+  "t0328": {
+    "file": "entries/t0328_minecraft_shader_pipeline_overview.md",
+    "title_zh": "着色器管线概览",
+    "title_en": "minecraft_shader_pipeline_overview",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202508/1/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.17",
+    "tags": [
+      "shader",
+      "rendering_pipeline",
+      "core_shader",
+      "post_shader"
+    ],
+    "verified_in_game": false
+  },
+  "t0329": {
+    "file": "entries/t0329_particle_shader_parameter_passing.md",
+    "title_zh": "粒子着色器传参",
+    "title_en": "particle_shader_parameter_passing",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202509/7/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20",
+    "tags": [
+      "shader",
+      "particle",
+      "parameter_passing",
+      "data_pack",
+      "resource_pack"
+    ],
+    "verified_in_game": false
+  },
+  "t0330": {
+    "file": "entries/t0330_rush_enchantment_design.md",
+    "title_zh": "冲刺魔咒设计",
+    "title_en": "rush_enchantment_design",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202510/8/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21",
+    "tags": [
+      "enchantment",
+      "attribute_modifier",
+      "speed_boost",
+      "trident_synergy",
+      "durability_cost"
+    ],
+    "verified_in_game": false
+  },
+  "t0331": {
+    "file": "entries/t0331_text_display_animation_framework.md",
+    "title_zh": "文本展示实体动画框架",
+    "title_en": "text_display_animation_framework",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202510/7/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.6",
+    "tags": [
+      "text_display",
+      "animation",
+      "datapack",
+      "entity_manipulation",
+      "scoreboard_control"
+    ],
+    "verified_in_game": false
+  },
+  "t0334": {
+    "file": "entries/t0334_inheritance_data_merge.md",
+    "title_zh": "数据继承合并",
+    "title_en": "inheritance_data_merge",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202509/0/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20.5",
+    "tags": [
+      "数据继承",
+      "合并",
+      "变体",
+      "复用"
+    ],
+    "verified_in_game": false
+  },
+  "t0337": {
+    "file": "entries/t0337_submodel_composite_rendering.md",
+    "title_zh": "子模型复合渲染",
+    "title_en": "submodel_composite_rendering",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202509/2/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.19.4",
+    "tags": [
+      "display_entity",
+      "submodel",
+      "composite_rendering",
+      "transformation"
+    ],
+    "verified_in_game": false
+  },
+  "t0338": {
+    "file": "entries/t0338_anvil_rename_custom_command.md",
+    "title_zh": "铁砧重命名指令",
+    "title_en": "anvil_rename_custom_command",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202508/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20",
+    "tags": [
+      "铁砧",
+      "函数宏",
+      "字符串解析",
+      "掷骰",
+      "沉浸式交互"
+    ],
+    "verified_in_game": false
+  },
+  "t0343": {
+    "file": "entries/t0343_vertex_color_components_ao_tinting.md",
+    "title_zh": "顶点颜色组成",
+    "title_en": "vertex_color_components_ao_tinting",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202510/3/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.0",
+    "tags": [
+      "vertex color",
+      "ambient occlusion",
+      "tinting",
+      "colormap"
+    ],
+    "verified_in_game": false
+  },
+  "t0344": {
+    "file": "entries/t0344_invisible_item_data_slot.md",
+    "title_zh": "隐形物品数据槽",
+    "title_en": "invisible_item_data_slot",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202601/b/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20.5",
+    "tags": [
+      "物品槽位",
+      "玩家数据",
+      "custom_data",
+      "物品修饰器"
+    ],
+    "verified_in_game": false
+  },
+  "t0347": {
+    "file": "entries/t0347_static_entity_optimization.md",
+    "title_zh": "静体冻结优化",
+    "title_en": "static_entity_optimization",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202510/0/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.19.4",
+    "tags": [
+      "性能优化",
+      "实体冻结",
+      "运动学",
+      "火焰图"
+    ],
+    "verified_in_game": false
+  },
+  "t0348": {
+    "file": "entries/t0348_tps_detection_via_debug.md",
+    "title_zh": "TPS检测",
+    "title_en": "tps_detection_via_debug",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202508/6/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.14.4",
+    "tags": [
+      "tps",
+      "debug",
+      "schedule",
+      "performance",
+      "monitoring"
+    ],
+    "verified_in_game": false
+  },
+  "t0351": {
+    "file": "entries/t0351_ride_sync_animation.md",
+    "title_zh": "骑乘同步动画",
+    "title_en": "ride_sync_animation",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202510/1/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.19.4",
+    "tags": [
+      "展示实体",
+      "骑乘",
+      "同步",
+      "动画",
+      "客户端"
+    ],
+    "verified_in_game": false
+  },
+  "t0354": {
+    "file": "entries/t0354_chat_width_height_scaling.md",
+    "title_zh": "宽高缩放差异",
+    "title_en": "chat_width_height_scaling",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202509/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.0",
+    "tags": [
+      "chat",
+      "ui",
+      "scaling",
+      "character-size"
+    ],
+    "verified_in_game": false
+  },
+  "t0355": {
+    "file": "entries/t0355_virtual_cpu_on_mcfunction.md",
+    "title_zh": "虚拟CPU架构",
+    "title_en": "virtual_cpu_on_mcfunction",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202508/7/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21",
+    "tags": [
+      "virtual-cpu",
+      "compiler",
+      "llvm",
+      "assembly",
+      "mcfunction"
+    ],
+    "verified_in_game": false
+  },
+  "t0358": {
+    "file": "entries/t0358_block_pos_floor_behavior.md",
+    "title_zh": "方块坐标取整",
+    "title_en": "block_pos_floor_behavior",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202510/4/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "坐标系统",
+      "方块坐标",
+      "向下取整",
+      "相对坐标",
+      "局部坐标"
+    ],
+    "verified_in_game": false
+  },
+  "t0359": {
+    "file": "entries/t0359_display_entity_ui_framework.md",
+    "title_zh": "展示实体UI框架",
+    "title_en": "display_entity_ui_framework",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202506/0/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.19.4",
+    "tags": [
+      "display_entity",
+      "ui_framework",
+      "event_system",
+      "animation",
+      "layout"
+    ],
+    "verified_in_game": false
+  },
+  "t0360": {
+    "file": "entries/t0360_custom_music_disc_datapack.md",
+    "title_zh": "自定义唱片数据包",
+    "title_en": "custom_music_disc_datapack",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202506/3/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21",
+    "tags": [
+      "唱片",
+      "资源包",
+      "数据包",
+      "声音事件",
+      "jukebox_playable"
+    ],
+    "verified_in_game": false
+  },
+  "t0363": {
+    "file": "entries/t0363_8d_array_entity_storage.md",
+    "title_zh": "八维数组实体存储",
+    "title_en": "8d_array_entity_storage",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202601/a/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "数据存储",
+      "多维数组",
+      "实体数据",
+      "storage"
+    ],
+    "verified_in_game": false
+  },
+  "t0366": {
+    "file": "entries/t0366_compound_detection_via_function_args.md",
+    "title_zh": "函数参数判复合",
+    "title_en": "compound_detection_via_function_args",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202601/e/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20.2",
+    "tags": [
+      "nbt",
+      "type_detection",
+      "function",
+      "compound",
+      "data_command"
+    ],
+    "verified_in_game": false
+  },
+  "t0369": {
+    "file": "entries/t0369_minecraft_vertex_attributes_hardcoded.md",
+    "title_zh": "顶点属性硬编码",
+    "title_en": "minecraft_vertex_attributes_hardcoded",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202509/3/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.4",
+    "tags": [
+      "shader",
+      "vertex-attributes",
+      "hardcoded",
+      "resource-pack-limitation"
+    ],
+    "verified_in_game": false
+  },
+  "t0372": {
+    "file": "entries/t0372_structure_definition_biome_override.md",
+    "title_zh": "结构生物群系覆盖",
+    "title_en": "structure_definition_biome_override",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202508/0/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.18",
+    "tags": [
+      "worldgen",
+      "structure-definition",
+      "biome-override"
+    ],
+    "verified_in_game": false
+  },
+  "t0374": {
+    "file": "entries/t0374_composite_input_system.md",
+    "title_zh": "复合输入系统",
+    "title_en": "composite_input_system",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202508/4/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "25w32a",
+    "tags": [
+      "复合输入",
+      "文本组件",
+      "交互界面",
+      "宏特性"
+    ],
+    "verified_in_game": false
+  },
+  "t0375": {
+    "file": "entries/t0375_galgame_dialog_system.md",
+    "title_zh": "Galgame对话框系统",
+    "title_en": "galgame_dialog_system",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202507/0/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.5",
+    "tags": [
+      "data pack",
+      "galgame",
+      "dialog system",
+      "event system",
+      "storage"
+    ],
+    "verified_in_game": false
+  },
+  "t0378": {
+    "file": "entries/t0378_lectern_animation_display.md",
+    "title_zh": "讲台动画播放",
+    "title_en": "lectern_animation_display",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202510/6/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "讲台",
+      "书与笔",
+      "动画",
+      "红石",
+      "页面"
+    ],
+    "verified_in_game": false
+  },
+  "t0382": {
+    "file": "entries/t0382_recipe_type_transmute_mechanism.md",
+    "title_zh": "配方类型转化",
+    "title_en": "recipe_type_transmute_mechanism",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202508/3/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": true,
+    "version_min": "1.20.3",
+    "tags": [
+      "配方",
+      "类型转化",
+      "物品组件"
+    ],
+    "verified_in_game": false
+  },
+  "t0385": {
+    "file": "entries/t0385_list_key_access.md",
+    "title_zh": "列表键值访问",
+    "title_en": "list_key_access",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202506/4/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20",
+    "tags": [
+      "列表",
+      "键值访问",
+      "SNBT",
+      "数据查找"
+    ],
+    "verified_in_game": false
+  },
+  "t0388": {
+    "file": "entries/t0388_command_block_time_via_output.md",
+    "title_zh": "命令方块时间提取",
+    "title_en": "command_block_time_via_output",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202510/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "command_block",
+      "time_detection",
+      "string_parsing",
+      "world_close_detection"
+    ],
+    "verified_in_game": false
+  },
+  "t0389": {
+    "file": "entries/t0389_font_icon_resource_pack.md",
+    "title_zh": "字体图标资源包",
+    "title_en": "font_icon_resource_pack",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202506/1/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.16",
+    "tags": [
+      "字体",
+      "资源包",
+      "图标",
+      "Unicode私用区",
+      "bitmap字体"
+    ],
+    "verified_in_game": false
+  },
+  "t0390": {
+    "file": "entries/t0390_range_dispatch_animation.md",
+    "title_zh": "映射装弹动画",
+    "title_en": "range_dispatch_animation",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202511/6/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.4",
+    "tags": [
+      "resource_pack",
+      "model_mapping",
+      "animation",
+      "crossbow",
+      "range_dispatch"
+    ],
+    "verified_in_game": false
+  },
+  "t0392": {
+    "file": "entries/t0392_cross_frame_data_persistence.md",
+    "title_zh": "跨帧数据持久化",
+    "title_en": "cross_frame_data_persistence",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202508/2/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.4",
+    "tags": [
+      "后处理",
+      "帧缓冲",
+      "数据持久化",
+      "跨帧",
+      "着色器"
+    ],
+    "verified_in_game": false
+  },
+  "t0393": {
+    "file": "entries/t0393_particle_direction_control_via_zero_coun.md",
+    "title_zh": "零数量定向粒子",
+    "title_en": "particle_direction_control_via_zero_count",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202511/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.12.2",
+    "tags": [
+      "particle",
+      "direction control",
+      "zero count",
+      "execute positioned",
+      "local coordinates"
+    ],
+    "verified_in_game": false
+  },
+  "t0394": {
+    "file": "entries/t0394_display_entity_magic_circle.md",
+    "title_zh": "展示实体法阵",
+    "title_en": "display_entity_magic_circle",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202507/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.5",
+    "tags": [
+      "展示实体",
+      "模型映射",
+      "染色",
+      "魔法阵",
+      "资源包"
+    ],
+    "verified_in_game": false
+  },
+  "t0396": {
+    "file": "entries/t0396_version_adaptive_format_conversion.md",
+    "title_zh": "版本自适应转换",
+    "title_en": "version_adaptive_format_conversion",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202507/6/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "版本兼容",
+      "格式转换",
+      "资源包",
+      "数据包"
+    ],
+    "verified_in_game": false
+  },
+  "t0399": {
+    "file": "entries/t0399_scoreboard_mining_end_detection.md",
+    "title_zh": "计分板监听挖掘结束",
+    "title_en": "scoreboard_mining_end_detection",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202506/2/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "计分板",
+      "挖掘结束",
+      "tick函数",
+      "事件监听"
+    ],
+    "verified_in_game": false
+  },
+  "t0400": {
+    "file": "entries/t0400_multi_input_trigger_encoding.md",
+    "title_zh": "多输入编码提交",
+    "title_en": "multi_input_trigger_encoding",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202511/4/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.6",
+    "tags": [
+      "dialog",
+      "trigger",
+      "encoding",
+      "bitwise",
+      "input"
+    ],
+    "verified_in_game": false
+  },
+  "t0402": {
+    "file": "entries/t0402_trigger_as_privileged_action.md",
+    "title_zh": "Trigger规避权限弹窗",
+    "title_en": "trigger_as_privileged_action",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202506/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": true,
+    "version_min": "1.13",
+    "tags": [
+      "trigger",
+      "dialog",
+      "privilege-escalation",
+      "ui-interaction"
+    ],
+    "verified_in_game": false
+  },
+  "t0403": {
+    "file": "entries/t0403_overlay_subpack_versioning.md",
+    "title_zh": "子包分版本加载",
+    "title_en": "overlay_subpack_versioning",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202504/2/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20.2",
+    "tags": [
+      "pack.mcmeta",
+      "overlays",
+      "版本兼容",
+      "数据包结构"
+    ],
+    "verified_in_game": false
+  },
+  "t0404": {
+    "file": "entries/t0404_dynamic_custom_cooldown.md",
+    "title_zh": "动态物品冷却",
+    "title_en": "dynamic_custom_cooldown",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202507/4/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21",
+    "tags": [
+      "cooldown",
+      "consumable",
+      "progress",
+      "recipe_unlocked",
+      "dynamic",
+      "item_modify"
+    ],
+    "verified_in_game": false
+  },
+  "t0406": {
+    "file": "entries/t0406_tick_tag_override_merge.md",
+    "title_zh": "标签合并覆盖",
+    "title_en": "tick_tag_override_merge",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202504/1/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": true,
+    "version_min": "1.13",
+    "tags": [
+      "tag",
+      "tick",
+      "merge",
+      "override"
+    ],
+    "verified_in_game": false
+  },
+  "t0408": {
+    "file": "entries/t0408_custom_mcdoc_dispatch.md",
+    "title_zh": "自定义mcdoc分发",
+    "title_en": "custom_mcdoc_dispatch",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202505/3/content_",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21",
+    "tags": [
+      "spyglass",
+      "mcdoc",
+      "自定义NBT",
+      "代码补全",
+      "数据结构"
+    ],
+    "verified_in_game": false
+  },
+  "t0411": {
+    "file": "entries/t0411_minecraft_mix_light_lambert.md",
+    "title_zh": "Lambert光照混合",
+    "title_en": "minecraft_mix_light_lambert",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202511/2/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.8",
+    "tags": [
+      "core_shader",
+      "lighting",
+      "lambert",
+      "entity"
+    ],
+    "verified_in_game": false
+  },
+  "t0413": {
+    "file": "entries/t0413_display_entity_svd_decomposition.md",
+    "title_zh": "SVD分解变换",
+    "title_en": "display_entity_svd_decomposition",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202505/2/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.19.4",
+    "tags": [
+      "display_entity",
+      "SVD",
+      "decomposition",
+      "rotation",
+      "scale"
+    ],
+    "verified_in_game": false
+  },
+  "t0415": {
+    "file": "entries/t0415_datapack_furniture_framework_generator.md",
+    "title_zh": "数据包家具框架生成器",
+    "title_en": "datapack_furniture_framework_generator",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202504/0/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21",
+    "tags": [
+      "数据包",
+      "家具框架",
+      "生成工具",
+      "模型作者",
+      "自动化"
+    ],
+    "verified_in_game": false
+  },
+  "t0416": {
+    "file": "entries/t0416_composite_model_multi_status_bar.md",
+    "title_zh": "复合模型状态栏",
+    "title_en": "composite_model_multi_status_bar",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202504/6/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.4",
+    "tags": [
+      "物品模型",
+      "composite",
+      "custom_model_data",
+      "状态栏",
+      "1.21.4"
+    ],
+    "verified_in_game": false
+  },
+  "t0419": {
+    "file": "entries/t0419_queue_traversal_without_macro.md",
+    "title_zh": "无宏队列遍历",
+    "title_en": "queue_traversal_without_macro",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202511/3/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20.2",
+    "tags": [
+      "数据结构",
+      "队列遍历",
+      "data命令",
+      "递归"
+    ],
+    "verified_in_game": false
+  },
+  "t0421": {
+    "file": "entries/t0421_scoreboard_health_percentage_calculation.md",
+    "title_zh": "血量百分比计算",
+    "title_en": "scoreboard_health_percentage_calculation",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202505/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "scoreboard",
+      "execute",
+      "health",
+      "percentage",
+      "easing"
+    ],
+    "verified_in_game": false
+  },
+  "t0422": {
+    "file": "entries/t0422_scanline_chunk_counting.md",
+    "title_zh": "扫描线区块计数",
+    "title_en": "scanline_chunk_counting",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202504/4/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "区块计数",
+      "扫描线算法",
+      "性能优化",
+      "自定义生成"
+    ],
+    "verified_in_game": false
+  },
+  "t0425": {
+    "file": "entries/t0425_execute_early_fail.md",
+    "title_zh": "前置失败优化",
+    "title_en": "execute_early_fail",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202504/3/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "execute",
+      "性能优化",
+      "条件判断"
+    ],
+    "verified_in_game": false
+  },
+  "t0427": {
+    "file": "entries/t0427_jar_extraction_for_datapack.md",
+    "title_zh": "拆解 JAR 学数据包",
+    "title_en": "jar_extraction_for_datapack",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202505/4/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": true,
+    "version_min": "1.13",
+    "tags": [
+      "datapack",
+      "learning",
+      "jar_extraction"
+    ],
+    "verified_in_game": false
+  },
+  "t0430": {
+    "file": "entries/t0430_delayed_command_execution.md",
+    "title_zh": "延时命令执行",
+    "title_en": "delayed_command_execution",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202505/1/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.4",
+    "tags": [
+      "delay",
+      "scheduling",
+      "firework",
+      "command"
+    ],
+    "verified_in_game": false
+  },
+  "t0433": {
+    "file": "entries/t0433_scoreboard_branching_narrative.md",
+    "title_zh": "计分板分支叙事",
+    "title_en": "scoreboard_branching_narrative",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202507/1/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20",
+    "tags": [
+      "scoreboard",
+      "branching",
+      "narrative",
+      "function",
+      "dialog"
+    ],
+    "verified_in_game": false
+  },
+  "t0434": {
+    "file": "entries/t0434_scoreboard_ranking_by_subtraction.md",
+    "title_zh": "减法排序法",
+    "title_en": "scoreboard_ranking_by_subtraction",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202504/7/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "排序算法",
+      "计分板",
+      "虚拟玩家",
+      "小游戏"
+    ],
+    "verified_in_game": false
+  },
+  "t0437": {
+    "file": "entries/t0437_snbt_string_unescape.md",
+    "title_zh": "SNBT字符串反转义",
+    "title_en": "snbt_string_unescape",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202507/3/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.6",
+    "tags": [
+      "SNBT",
+      "字符串处理",
+      "宏",
+      "转义字符",
+      "对话框"
+    ],
+    "verified_in_game": false
+  },
+  "t0440": {
+    "file": "entries/t0440_selector_type_parsing_equivalence.md",
+    "title_zh": "选择器类型等价性",
+    "title_en": "selector_type_parsing_equivalence",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202507/2/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.20.6",
+    "tags": [
+      "目标选择器",
+      "性能优化",
+      "选择器类型",
+      "解析等价性"
+    ],
+    "verified_in_game": false
+  },
+  "t0443": {
+    "file": "entries/t0443_recursion_as_loop_in_mcfunction.md",
+    "title_zh": "递归替代循环",
+    "title_en": "recursion_as_loop_in_mcfunction",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202511/1/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "recursion",
+      "loop",
+      "function",
+      "control-flow"
+    ],
+    "verified_in_game": false
+  },
+  "t0446": {
+    "file": "entries/t0446_snbt_string_escape_sequences.md",
+    "title_zh": "SNBT字符串转义",
+    "title_en": "snbt_string_escape_sequences",
+    "source_url": "https://cr-019.github.io/datapack-index/feature/archive/202504/5/content",
+    "source_type": "feature_article",
+    "wiki_covers_this": false,
+    "version_min": "1.21.5",
+    "tags": [
+      "snbt",
+      "string",
+      "escape-sequence",
+      "unicode",
+      "formatting"
+    ],
+    "verified_in_game": false
+  },
+  "t0447": {
+    "title_zh": "F键检测·物品标记法",
+    "title_en": "f_key_detection_item_tag",
+    "source_type": "manual",
+    "wiki_covers_this": false,
+    "tags": [
+      "input",
+      "fkey",
+      "inventory_changed",
+      "custom_data",
+      "storage"
+    ],
+    "version_min": "1.20.5",
+    "source_url": ""
+  },
+  "t0448": {
+    "title_zh": "变量类型与性能总览",
+    "title_en": "variable_types_and_performance_overview",
+    "source_type": "manual",
+    "wiki_covers_this": false,
+    "tags": [
+      "变量",
+      "性能",
+      "scoreboard",
+      "storage",
+      "nbt",
+      "macro",
+      "context"
+    ],
+    "version_min": "1.14",
+    "source_url": ""
+  },
+  "t0449": {
+    "title_zh": "假玩家记分板惯例",
+    "title_en": "fake_player_scoreboard_conventions",
+    "source_type": "manual",
+    "wiki_covers_this": false,
+    "tags": [
+      "scoreboard",
+      "假玩家",
+      "变量声明",
+      "性能",
+      "命名惯例"
+    ],
+    "version_min": "1.14",
+    "source_url": ""
+  },
+  "t0450": {
+    "title_zh": "记分板隐式赋值行为",
+    "title_en": "scoreboard_implicit_assignment_behavior",
+    "source_type": "manual",
+    "wiki_covers_this": false,
+    "tags": [
+      "scoreboard",
+      "赋值",
+      "store",
+      "operation",
+      "div0",
+      "陷阱"
+    ],
+    "version_min": "1.14",
+    "source_url": ""
+  },
+  "t0451": {
+    "title_zh": "Storage 用法全览",
+    "title_en": "storage_usage_overview",
+    "source_type": "manual",
+    "wiki_covers_this": false,
+    "tags": [
+      "storage",
+      "nbt",
+      "data",
+      "变量",
+      "全局"
+    ],
+    "version_min": "1.15",
+    "source_url": ""
+  },
+  "t0452": {
+    "title_zh": "上下文变量完整机制",
+    "title_en": "execution_context_variables",
+    "source_type": "manual",
+    "wiki_covers_this": false,
+    "tags": [
+      "execute",
+      "上下文",
+      "executor",
+      "position",
+      "anchor",
+      "store",
+      "分支栈",
+      "context"
+    ],
+    "version_min": "1.14",
+    "source_url": ""
+  },
+  "t0453": {
+    "title_zh": "宏变量与缓存机制",
+    "title_en": "macro_variable_and_cache_mechanism",
+    "source_type": "manual",
+    "wiki_covers_this": false,
+    "tags": [
+      "macro",
+      "宏",
+      "缓存",
+      "性能",
+      "局部变量",
+      "function"
+    ],
+    "version_min": "1.20.2",
+    "source_url": ""
+  },
+  "t0454": {
+    "title_zh": "F键检测·前后帧存储法",
+    "title_en": "f_key_detection_frame_diff",
+    "source_type": "manual",
+    "wiki_covers_this": false,
+    "tags": [
+      "input",
+      "fkey",
+      "inventory_changed",
+      "storage",
+      "macro",
+      "frame_diff"
+    ],
+    "version_min": "1.20.5",
+    "source_url": ""
+  },
+  "t0455": {
+    "file": "entries/t0455_command_context.md",
+    "title_zh": "命令上下文",
+    "title_en": "command_context",
+    "layer": "concept",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/commandcontext",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.13",
+    "tags": [
+      "command context",
+      "execute",
+      "function",
+      "optimization"
+    ],
+    "verified_in_game": false
+  },
+  "t0456": {
+    "file": "entries/t0456_detect_score_change.md",
+    "title_zh": "分数变化检测",
+    "title_en": "detect_score_change",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/changeofscore",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "scoreboard",
+      "detection",
+      "comparison",
+      "tick"
+    ],
+    "verified_in_game": false
+  },
+  "t0457": {
+    "file": "entries/t0457_invert_command_block_success.md",
+    "title_zh": "反转命令方块成功",
+    "title_en": "invert_command_block_success",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/blockinvert",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.8",
+    "tags": [
+      "command_block",
+      "success_count",
+      "conditional",
+      "redstone_alternative"
+    ],
+    "verified_in_game": false
+  },
+  "t0459": {
+    "file": "entries/t0459_count_items_with_if_items.md",
+    "title_zh": "if items计数法",
+    "title_en": "count_items_with_if_items",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/amountitems",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.20.5",
+    "tags": [
+      "item-counting",
+      "execute-if-items",
+      "scoreboard",
+      "item-components",
+      "container"
+    ],
+    "verified_in_game": false
+  },
+  "t0461": {
+    "file": "entries/t0461_projectile_owner_spoofing.md",
+    "title_zh": "投射物所有者伪造",
+    "title_en": "projectile_owner_spoofing",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/angermob",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "projectile",
+      "owner",
+      "nbt",
+      "mob",
+      "anger",
+      "targeting"
+    ],
+    "verified_in_game": false
+  },
+  "t0463": {
+    "file": "entries/t0463_setworldspawn_compass_tracking.md",
+    "title_zh": "世界出生点追踪",
+    "title_en": "setworldspawn_compass_tracking",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/compasstoplayer",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.0",
+    "tags": [
+      "compass",
+      "world spawn",
+      "setworldspawn",
+      "tracking"
+    ],
+    "verified_in_game": false
+  },
+  "t0464": {
+    "file": "entries/t0464_multi_area_player_detection.md",
+    "title_zh": "多区域玩家检测",
+    "title_en": "multi_area_player_detection",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/areas",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "player_detection",
+      "area_check",
+      "gamemode_switch",
+      "tag_system",
+      "predicate",
+      "marker_entity"
+    ],
+    "verified_in_game": false
+  },
+  "t0465": {
+    "file": "entries/t0465_custom_item_tag_identification.md",
+    "title_zh": "物品自定义标签",
+    "title_en": "custom_item_tag_identification",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/customitemtag",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "item",
+      "nbt",
+      "custom_data",
+      "identification",
+      "detection"
+    ],
+    "verified_in_game": false
+  },
+  "t0467": {
+    "file": "entries/t0467_escaping_in_minecraft_commands.md",
+    "title_zh": "命令转义机制",
+    "title_en": "escaping_in_minecraft_commands",
+    "layer": "concept",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/escaping",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.0",
+    "tags": [
+      "escaping",
+      "string",
+      "syntax",
+      "json",
+      "nbt"
+    ],
+    "verified_in_game": false
+  },
+  "t0468": {
+    "file": "entries/t0468_score_comparison_via_fake_player.md",
+    "title_zh": "假玩家分数比较",
+    "title_en": "score_comparison_via_fake_player",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/findsamescoreentity",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "scoreboard",
+      "predicate",
+      "fake_player",
+      "entity_comparison",
+      "performance"
+    ],
+    "verified_in_game": false
+  },
+  "t0469": {
+    "file": "entries/t0469_conditional_execution_with_functions.md",
+    "title_zh": "函数条件执行",
+    "title_en": "conditional_execution_with_functions",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/functionconditions",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.12",
+    "tags": [
+      "conditional",
+      "execute",
+      "scoreboard",
+      "function",
+      "selector"
+    ],
+    "verified_in_game": false
+  },
+  "t0472": {
+    "file": "entries/t0472_schedule_function_delay.md",
+    "title_zh": "schedule延时函数",
+    "title_en": "schedule_function_delay",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/blockdelay",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.14",
+    "tags": [
+      "schedule",
+      "function",
+      "delay",
+      "timer",
+      "datapack"
+    ],
+    "verified_in_game": false
+  },
+  "t0473": {
+    "file": "entries/t0473_find_highest_score_entity.md",
+    "title_zh": "最高分实体查找",
+    "title_en": "find_highest_score_entity",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/highestscore",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "scoreboard",
+      "entity-selection",
+      "comparison"
+    ],
+    "verified_in_game": false
+  },
+  "t0476": {
+    "file": "entries/t0476_predicate_detect_item_any_slot.md",
+    "title_zh": "谓词检测任意槽位物品",
+    "title_en": "predicate_detect_item_any_slot",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/detectitem",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.20.5",
+    "tags": [
+      "predicate",
+      "item detection",
+      "slot detection",
+      "1.20.5"
+    ],
+    "verified_in_game": false
+  },
+  "t0477": {
+    "file": "entries/t0477_bedrock_special_item_giving_methods.md",
+    "title_zh": "基岩版特殊物品给予",
+    "title_en": "bedrock_special_item_giving_methods",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/giveitembedrock",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.0.0",
+    "tags": [
+      "bedrock",
+      "item_giving",
+      "loot_table",
+      "structure",
+      "workaround"
+    ],
+    "verified_in_game": false
+  },
+  "t0478": {
+    "file": "entries/t0478_target_players_above_below_y_level.md",
+    "title_zh": "Y轴范围检测",
+    "title_en": "target_players_above_below_y_level",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/heighttest",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "target-selector",
+      "dy",
+      "predicate",
+      "y-level",
+      "execute-at"
+    ],
+    "verified_in_game": false
+  },
+  "t0479": {
+    "file": "entries/t0479_entity_rotation_circle_generation.md",
+    "title_zh": "旋转实体画圆",
+    "title_en": "entity_rotation_circle_generation",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/makecircle",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "circle",
+      "rotation",
+      "local-coordinates",
+      "command-blocks",
+      "building"
+    ],
+    "verified_in_game": false
+  },
+  "t0480": {
+    "file": "entries/t0480_disable_hostile_mobs_and_pvp.md",
+    "title_zh": "禁用敌对与PVP",
+    "title_en": "disable_hostile_mobs_and_pvp",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/hostilefriendly",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "hostile mobs",
+      "pvp",
+      "teams",
+      "effects",
+      "interaction entity",
+      "attribute",
+      "game rule"
+    ],
+    "verified_in_game": false
+  },
+  "t0481": {
+    "file": "entries/t0481_item_click_detection_methods.md",
+    "title_zh": "物品点击检测",
+    "title_en": "item_click_detection_methods",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/itemclick",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "click detection",
+      "interaction entity",
+      "carrot on a stick",
+      "food component",
+      "villager",
+      "inventory click",
+      "bundle"
+    ],
+    "verified_in_game": false
+  },
+  "t0482": {
+    "file": "entries/t0482_scoreboard_id_system.md",
+    "title_zh": "计分板ID系统",
+    "title_en": "scoreboard_id_system",
+    "layer": "pattern",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/linkentity",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "计分板",
+      "实体链接",
+      "ID系统",
+      "玩家追踪"
+    ],
+    "verified_in_game": false
+  },
+  "t0483": {
+    "file": "entries/t0483_modify_player_inventory_item.md",
+    "title_zh": "修改玩家物品",
+    "title_en": "modify_player_inventory_item",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/modifyinventory",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.14",
+    "tags": [
+      "item modification",
+      "player inventory",
+      "item modifier",
+      "loot table",
+      "shulker box"
+    ],
+    "verified_in_game": false
+  },
+  "t0484": {
+    "file": "entries/t0484_multiple_scoreboard_tag_selection.md",
+    "title_zh": "多标签实体选择",
+    "title_en": "multiple_scoreboard_tag_selection",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/multipletags",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.12",
+    "tags": [
+      "selector",
+      "scoreboard",
+      "tag",
+      "nbt",
+      "legacy"
+    ],
+    "verified_in_game": false
+  },
+  "t0485": {
+    "file": "entries/t0485_npc_dialog_chaining.md",
+    "title_zh": "NPC对话链",
+    "title_en": "npc_dialog_chaining",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/npc",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.16.0",
+    "tags": [
+      "npc",
+      "dialogue",
+      "bedrock",
+      "command",
+      "interaction"
+    ],
+    "verified_in_game": false
+  },
+  "t0486": {
+    "file": "entries/t0486_nbt_scoreboard_interop.md",
+    "title_zh": "NBT与计分板互转",
+    "title_en": "nbt_scoreboard_interop",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/nbttransfer",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.13",
+    "tags": [
+      "nbt",
+      "scoreboard",
+      "data-get",
+      "execute-store",
+      "data-transfer"
+    ],
+    "verified_in_game": false
+  },
+  "t0489": {
+    "file": "entries/t0489_knowledge_book_crafting_with_ingredient_.md",
+    "title_zh": "知识书合成NBT原料",
+    "title_en": "knowledge_book_crafting_with_ingredient_nbt",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/customcrafting",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.20",
+    "tags": [
+      "custom_crafting",
+      "knowledge_book",
+      "advancement_trigger",
+      "recipe_crafted",
+      "nbt_ingredient"
+    ],
+    "verified_in_game": false
+  },
+  "t0491": {
+    "file": "entries/t0491_uuid_based_death_detection.md",
+    "title_zh": "UUID死亡检测",
+    "title_en": "uuid_based_death_detection",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/mobdeaths",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.20.2",
+    "tags": [
+      "death_detection",
+      "uuid",
+      "macro",
+      "storage",
+      "nbt_check"
+    ],
+    "verified_in_game": false
+  },
+  "t0494": {
+    "file": "entries/t0494_viewing_angle_calculation.md",
+    "title_zh": "视角角度计算",
+    "title_en": "viewing_angle_calculation",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/lookat",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.19.50",
+    "tags": [
+      "数学",
+      "三角函数",
+      "视线检测",
+      "distance参数"
+    ],
+    "verified_in_game": false
+  },
+  "t0495": {
+    "file": "entries/t0495_range_syntax_in_selectors.md",
+    "title_zh": "选择器范围语法",
+    "title_en": "range_syntax_in_selectors",
+    "layer": "concept",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/range",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.13",
+    "tags": [
+      "selector",
+      "syntax",
+      "range"
+    ],
+    "verified_in_game": false
+  },
+  "t0496": {
+    "file": "entries/t0496_player_killed_entity_advancement.md",
+    "title_zh": "击杀检测",
+    "title_en": "player_killed_entity_advancement",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/playerkills",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.13",
+    "tags": [
+      "advancement",
+      "entity_kill",
+      "detection",
+      "nbt_filter"
+    ],
+    "verified_in_game": false
+  },
+  "t0499": {
+    "file": "entries/t0499_successcount_nbt_check.md",
+    "title_zh": "SuccessCount检测",
+    "title_en": "successcount_nbt_check",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/numplayers",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.0",
+    "tags": [
+      "entity counting",
+      "command block",
+      "successcount",
+      "legacy"
+    ],
+    "verified_in_game": false
+  },
+  "t0500": {
+    "file": "entries/t0500_detect_player_join.md",
+    "title_zh": "检测玩家加入",
+    "title_en": "detect_player_join",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/playerjoin",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "player_detection",
+      "join_event",
+      "scoreboard",
+      "advancement",
+      "tag"
+    ],
+    "verified_in_game": false
+  },
+  "t0503": {
+    "file": "entries/t0503_bedrock_death_detection_via_tag.md",
+    "title_zh": "基岩版死亡检测",
+    "title_en": "bedrock_death_detection_via_tag",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/playerdeaths",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.0",
+    "tags": [
+      "bedrock",
+      "death detection",
+      "tag",
+      "selector trick"
+    ],
+    "verified_in_game": false
+  },
+  "t0504": {
+    "file": "entries/t0504_random_number_generation_methods.md",
+    "title_zh": "随机数生成方法",
+    "title_en": "random_number_generation_methods",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/randomnumber",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "random",
+      "random-number",
+      "uuid",
+      "loot-table",
+      "prng",
+      "scoreboard"
+    ],
+    "verified_in_game": false
+  },
+  "t0507": {
+    "file": "entries/t0507_end_gateway_score_teleport.md",
+    "title_zh": "末地折跃门分数传送",
+    "title_en": "end_gateway_score_teleport",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/movetoscore",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "teleport",
+      "scoreboard",
+      "end_gateway",
+      "execute_store",
+      "nbt"
+    ],
+    "verified_in_game": false
+  },
+  "t0508": {
+    "file": "entries/t0508_score_comparison_via_predicate.md",
+    "title_zh": "谓词比较分数",
+    "title_en": "score_comparison_via_predicate",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/scorecompare",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.15",
+    "tags": [
+      "predicate",
+      "scoreboard",
+      "comparison",
+      "entity_scores"
+    ],
+    "verified_in_game": false
+  },
+  "t0509": {
+    "file": "entries/t0509_nbt_selector_fallback.md",
+    "title_zh": "NBT选择器回退",
+    "title_en": "nbt_selector_fallback",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/tagentity",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": true,
+    "version_min": "1.8",
+    "tags": [
+      "selector",
+      "nbt",
+      "tag",
+      "scoreboard",
+      "entity"
+    ],
+    "verified_in_game": false
+  },
+  "t0511": {
+    "file": "entries/t0511_raycast_with_entity.md",
+    "title_zh": "实体射线检测",
+    "title_en": "raycast_with_entity",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/raycast",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "raycast",
+      "entity-based",
+      "marker-entity",
+      "teleport"
+    ],
+    "verified_in_game": false
+  },
+  "t0515": {
+    "file": "entries/t0515_one_shot_trigger_with_tag.md",
+    "title_zh": "标签单次触发",
+    "title_en": "one_shot_trigger_with_tag",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/runonce",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "tag",
+      "edge_detection",
+      "trigger",
+      "player_detection",
+      "cross_platform"
+    ],
+    "verified_in_game": false
+  },
+  "t0516": {
+    "file": "entries/t0516_shoot_facing_direction.md",
+    "title_zh": "朝向发射实体",
+    "title_en": "shoot_facing_direction",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/shootfacing",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "motion",
+      "vector",
+      "projectile",
+      "local-coordinates",
+      "entity-shooting"
+    ],
+    "verified_in_game": false
+  },
+  "t0519": {
+    "file": "entries/t0519_villager_custom_trades.md",
+    "title_zh": "村民自定义交易",
+    "title_en": "villager_custom_trades",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/shop",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "villager",
+      "trading",
+      "nbt",
+      "shop",
+      "no-performance-cost"
+    ],
+    "verified_in_game": false
+  },
+  "t0522": {
+    "file": "entries/t0522_return_inventory_via_shulkerbox_trick.md",
+    "title_zh": "潜影盒归还背包",
+    "title_en": "return_inventory_via_shulkerbox_trick",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/storeinventory",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.17",
+    "tags": [
+      "inventory",
+      "shulker_box",
+      "loot",
+      "give",
+      "trick"
+    ],
+    "verified_in_game": false
+  }
+}

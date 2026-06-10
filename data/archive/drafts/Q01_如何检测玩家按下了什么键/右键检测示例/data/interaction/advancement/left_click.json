@@ -1,0 +1,15 @@
+{
+    "criteria": {
+        "1":{
+            "trigger": "player_hurt_entity",
+            "conditions": {
+                "entity": {
+                    "type": "interaction"
+                }
+            }
+        }
+    },
+    "rewards": {
+        "function": "interaction:detect/left_click"
+    }
+}

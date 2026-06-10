@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MC 知识库</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #1a1a2e; --surface: #16213e; --card: #0f3460;
+    --accent: #e94560; --accent2: #4ecca3;
+    --text: #eaeaea; --muted: #888; --border: #2a2a4a;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; }
+
+  /* ── Nav ── */
+  nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; gap: 4px; height: 48px; flex-shrink: 0; }
+  nav h1 { font-size: 15px; font-weight: 700; color: var(--accent2); margin-right: 16px; }
+  .tab { padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--muted); border: none; background: none; transition: all .15s; }
+  .tab:hover { color: var(--text); background: var(--border); }
+  .tab.active { color: var(--accent2); background: var(--card); }
+  .nav-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { opacity: .85; }
+  .btn-secondary { background: var(--card); color: var(--text); }
+  .btn-secondary:hover { background: var(--border); }
+  .btn-ghost { background: none; color: var(--muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ── Layout ── */
+  main { flex: 1; overflow: hidden; display: flex; }
+  .panel { display: none; flex: 1; overflow: hidden; }
+  .panel.active { display: flex; flex-direction: column; }
+
+  /* ── Inbox Panel ── */
+  #inbox-panel { gap: 0; }
+  .inbox-split { display: flex; flex: 1; overflow: hidden; gap: 0; }
+  .inbox-compose { flex: 1; display: flex; flex-direction: column; padding: 16px; gap: 10px; min-width: 0; }
+  .inbox-compose h2 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  textarea { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Consolas', monospace; font-size: 13px; padding: 12px; resize: none; outline: none; line-height: 1.6; }
+  textarea:focus { border-color: var(--accent2); }
+  input[type=text] { background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; padding: 7px 10px; outline: none; width: 100%; }
+  input[type=text]:focus { border-color: var(--accent2); }
+  .inbox-list { width: 300px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .inbox-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; cursor: pointer; transition: border-color .15s; }
+  .inbox-card:hover { border-color: var(--accent2); }
+  .inbox-card.selected { border-color: var(--accent2); }
+  .inbox-card-name { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .inbox-card-preview { font-size: 13px; line-height: 1.5; }
+  .inbox-card-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 40px; }
+
+  /* ── Structure Modal ── */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 720px; max-height: 90vh; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+  .modal h2 { font-size: 16px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 12px; color: var(--muted); }
+  .field input, .field textarea { width: 100%; }
+  .field textarea { height: 90px; resize: vertical; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .tag-input { display: flex; flex-wrap: wrap; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 6px; min-height: 36px; align-items: center; cursor: text; }
+  .tag { background: var(--accent); color: #fff; border-radius: 4px; padding: 2px 8px; font-size: 12px; display: flex; gap: 4px; align-items: center; }
+  .tag span { cursor: pointer; opacity: .7; }
+  .tag-input input { border: none; background: none; color: var(--text); font-size: 13px; outline: none; min-width: 80px; flex: 1; }
+
+  /* ── Techniques Panel ── */
+  #tech-panel { }
+  .tech-toolbar { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  .tech-toolbar input { flex: 1; max-width: 320px; }
+  .tech-split { flex: 1; overflow: hidden; display: flex; }
+  .tech-list { width: 320px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; }
+  .tech-item { padding: 10px 14px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
+  .tech-item:hover { background: var(--card); }
+  .tech-item.selected { background: var(--card); border-left: 3px solid var(--accent2); }
+  .tech-item-id { font-size: 11px; color: var(--muted); }
+  .tech-item-title { font-size: 13px; margin-top: 2px; }
+  .tech-item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .pill { background: var(--border); border-radius: 10px; padding: 1px 7px; font-size: 11px; color: var(--muted); }
+  .conf-high { background: #1a4a1a; color: #4ade80; border: 0.5px solid #4ade80; }
+  .conf-medium { background: #4a3a0a; color: #facc15; border: 0.5px solid #facc15; }
+  .conf-low { background: #4a1a1a; color: #f87171; border: 0.5px solid #f87171; }
+  .conf-badge { display: inline-block; border-radius: 3px; padding: 1px 5px; font-size: 10px; font-weight: 600; margin-right: 4px; text-transform: uppercase; }
+  select { background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; padding: 7px 10px; outline: none; }
+  select:focus { border-color: var(--accent2); }
+  .tech-editor { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .tech-editor-toolbar { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  .tech-editor-toolbar span { font-size: 13px; color: var(--muted); flex: 1; }
+  #tech-content { flex: 1; padding: 16px; font-family: 'Consolas', monospace; font-size: 13px; line-height: 1.7; background: var(--bg); border: none; color: var(--text); resize: none; outline: none; }
+  .tech-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; }
+
+  /* ── Query Panel ── */
+  #query-panel { }
+  .query-inner { flex: 1; display: flex; flex-direction: column; max-width: 820px; margin: 0 auto; width: 100%; padding: 20px; gap: 12px; overflow: hidden; }
+  .query-box { display: flex; gap: 8px; flex-shrink: 0; }
+  .query-box input { flex: 1; padding: 10px 14px; border-radius: 8px; font-size: 14px; }
+  .hits { display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
+  .hit-pill { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 3px 12px; font-size: 12px; color: var(--accent2); }
+  .answer-box { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-y: auto; font-size: 14px; line-height: 1.8; white-space: pre-wrap; color: var(--text); }
+  .answer-box.loading { color: var(--muted); }
+
+  /* ── Rate Panel ── */
+  #rate-panel { }
+  .rate-wrap { flex: 1; display: flex; flex-direction: column; max-width: 760px; margin: 0 auto; width: 100%; padding: 20px; gap: 14px; overflow: hidden; }
+  .rate-progress { flex-shrink: 0; font-size: 13px; color: var(--muted); text-align: center; }
+  .rate-card { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; overflow-y: auto; }
+  .rate-card .rate-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .rate-card .rate-meta { font-size: 12px; color: var(--muted); margin-bottom: 14px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .rate-card .rate-body { font-size: 13.5px; line-height: 1.75; color: var(--text); white-space: pre-wrap; }
+  .rate-actions { flex-shrink: 0; display: flex; gap: 10px; }
+  .rate-btn { flex: 1; padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: all .12s; }
+  .rate-btn:hover { transform: translateY(-1px); }
+  .rate-water { background: #475569; color: #fff; }
+  .rate-ok { background: #ca8a04; color: #000; }
+  .rate-core { background: #4ade80; color: #000; }
+  .rate-skip { background: none; border: 1px solid var(--border); color: var(--muted); flex: 0 0 100px; }
+  .rate-hint { flex-shrink: 0; font-size: 12px; color: var(--muted); text-align: center; }
+  .q-badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .q-core { background: #4ade80; color: #000; }
+  .q-ok { background: #ca8a04; color: #000; }
+  .q-water { background: #475569; color: #fff; }
+  .q-none { background: var(--border); color: var(--muted); }
+
+  /* ── Toast ── */
+  #toast { position: fixed; bottom: 20px; right: 20px; background: var(--accent2); color: #000; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 200; }
+  #toast.show { opacity: 1; }
+
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Underline design language ── */
+  * { border-radius: 0 !important; }
+  :root {
+    --yellow: #ffc900;
+    --bg: #f2f2f2;
+    --surface: #ffffff;
+    --card: #ffffff;
+    --accent: #000000;
+    --accent2: #ffc900;
+    --text: #000000;
+    --muted: #686868;
+    --border: #000000;
+    --soft-border: #d8d8d8;
+  }
+  body {
+    font-family: Consolas, Monaco, "Courier New", "Microsoft YaHei", monospace;
+    background: var(--bg);
+    color: var(--text);
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: .16;
+    background-image: linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: linear-gradient(to bottom, #000, transparent 58%);
+  }
+  nav {
+    height: 58px;
+    padding: 0 22px;
+    gap: 0;
+    color: #fff;
+    background: #000;
+    border-bottom: 6px solid var(--yellow);
+    position: relative;
+    z-index: 10;
+  }
+  nav h1 {
+    color: var(--yellow);
+    font-size: 17px;
+    letter-spacing: .12em;
+    margin-right: 28px;
+    text-transform: uppercase;
+  }
+  nav h1::after { content: "_"; animation: blink .8s steps(1) infinite; }
+  .tab {
+    height: 52px;
+    padding: 0 18px;
+    color: #b8b8b8;
+    border-left: 1px solid #333;
+    font-family: inherit;
+    font-weight: 700;
+    letter-spacing: .06em;
+    transition: color .2s ease, background .25s ease, transform .25s ease;
+  }
+  .tab:last-of-type { border-right: 1px solid #333; }
+  .tab:hover { color: var(--yellow); background: #151515; transform: translateY(-2px); }
+  .tab.active { color: #000; background: var(--yellow); }
+  .btn {
+    border: 2px solid #000;
+    background: #fff;
+    color: #000;
+    font-family: inherit;
+    font-weight: 800;
+    letter-spacing: .04em;
+    box-shadow: 4px 4px 0 #000;
+    transition: transform .18s ease, box-shadow .18s ease, background .18s ease, color .18s ease;
+  }
+  .btn:hover { opacity: 1; transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; background: var(--yellow); }
+  .btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 #000; }
+  .btn-primary { color: #000; background: var(--yellow); }
+  .btn-secondary, .btn-ghost { color: #000; background: #fff; border: 2px solid #000; }
+  nav .btn-ghost { color: var(--yellow); background: #000; border-color: var(--yellow); box-shadow: 3px 3px 0 var(--yellow); }
+  main { position: relative; z-index: 1; }
+  .panel.active { animation: panelIn .32s ease both; }
+  .inbox-list, .tech-list {
+    background: #e8e8e8;
+    border-right: 3px solid #000;
+    gap: 0;
+    padding: 12px;
+  }
+  .inbox-card, .tech-item {
+    background: #fff;
+    border: 2px solid #000;
+    margin-bottom: 10px;
+    box-shadow: 5px 5px 0 #b7b7b7;
+    transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+  }
+  .inbox-card:hover, .tech-item:hover { background: #fff; transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--yellow); }
+  .inbox-card.selected, .tech-item.selected { background: var(--yellow); border-left: 8px solid #000; box-shadow: 6px 6px 0 #000; }
+  .inbox-compose { padding: 24px; background: #fff; border-top: 18px solid var(--yellow); }
+  .inbox-compose h2 { color: #000; font-size: 18px; letter-spacing: .1em; }
+  textarea, input[type=text], select, .tag-input {
+    color: #000;
+    background: #fff;
+    border: 2px solid #000;
+    font-family: inherit;
+    transition: box-shadow .2s ease, background .2s ease;
+  }
+  textarea:focus, input[type=text]:focus, select:focus, .tag-input:focus-within {
+    border-color: #000;
+    background: #fffdf3;
+    box-shadow: 6px 6px 0 var(--yellow);
+  }
+  .tech-toolbar, .tech-editor-toolbar {
+    padding: 14px 18px;
+    background: #fff;
+    border-bottom: 3px solid #000;
+  }
+  .tech-editor { background: #fff; border-top: 18px solid var(--yellow); }
+  #tech-content { background: #fff; color: #000; padding: 24px; }
+  .pill, .q-badge, .conf-badge { border: 1px solid #000 !important; color: #000 !important; background: #fff !important; }
+  .q-core, .conf-high { background: var(--yellow) !important; }
+  .q-water, .conf-low { background: #d3d3d3 !important; }
+  .query-inner, .rate-wrap { max-width: 1040px; padding: 28px; }
+  .answer-box, .rate-card {
+    background: #fff;
+    border: 3px solid #000;
+    box-shadow: 10px 10px 0 #bdbdbd;
+  }
+  .rate-card { border-top: 18px solid var(--yellow); padding: 22px; display: flex; flex-direction: column; overflow: hidden; }
+  .rate-card .rate-title { font-size: 22px; text-transform: uppercase; }
+  .rate-body {
+    flex: 1;
+    width: 100%;
+    min-height: 260px;
+    margin-top: 10px;
+    padding: 16px;
+    resize: none;
+    overflow-y: auto;
+    background: #f7f7f7;
+    border: 2px solid #000;
+  }
+  .rate-actions { gap: 8px; }
+  .rate-btn {
+    border: 2px solid #000;
+    color: #000;
+    background: #fff;
+    font-family: inherit;
+    box-shadow: 4px 4px 0 #000;
+    transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+  }
+  .rate-btn:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; background: var(--yellow); }
+  .rate-core { background: var(--yellow); }
+  .rate-ok { background: #fff; }
+  .rate-water { background: #d5d5d5; }
+  .rate-skip { background: #000; color: #fff; }
+  .rate-save { background: #000; color: var(--yellow); flex: 0 0 140px; }
+  .modal-bg { background: rgba(0,0,0,.72); }
+  .modal { background: #fff; color: #000; border: 4px solid #000; box-shadow: 14px 14px 0 var(--yellow); }
+  .tag { background: var(--yellow); color: #000; border: 1px solid #000; }
+  #toast { color: #000; background: var(--yellow); border: 2px solid #000; box-shadow: 5px 5px 0 #000; }
+  .empty { color: #666; }
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-thumb { background: #000; border: 2px solid #fff; }
+  @keyframes panelIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  @media (max-width: 800px) {
+    nav h1 { display: none; }
+    .tab { padding: 0 9px; font-size: 11px; }
+    .inbox-list, .tech-list { width: 240px; }
+    .query-inner, .rate-wrap { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <h1>UNDERLINE / KB</h1>
+  <button class="tab active" data-tab="inbox" onclick="switchTab('inbox', this)">收件箱</button>
+  <button class="tab" data-tab="tech" onclick="switchTab('tech', this)">技术库</button>
+  <button class="tab" data-tab="query" onclick="switchTab('query', this)">查询</button>
+  <button class="tab" data-tab="rate" onclick="switchTab('rate', this)">评分</button>
+  <button class="tab" data-tab="trash" onclick="switchTab('trash', this)">回收站</button>
+  <div class="nav-right">
+    <button class="btn btn-ghost" onclick="rebuildRAG()" id="rag-btn">重建索引</button>
+  </div>
+</nav>
+
+<main>
+  <!-- ── Inbox Panel ── -->
+  <div id="inbox-panel" class="panel active">
+    <div class="inbox-split">
+      <div class="inbox-list" id="inbox-list">
+        <div class="empty">收件箱为空</div>
+      </div>
+      <div class="inbox-compose">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h2 id="compose-title">新建笔记</h2>
+          <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="resetCompose()" id="new-note-btn">+ 新建</button>
+        </div>
+        <input type="text" id="inbox-hint" placeholder="来源链接（可选）">
+        <textarea id="inbox-content" placeholder="随手记录技术笔记、代码片段、链接……
+不需要任何格式，AI 会自动整理。
+
+例如：
+# TSB UUID 位掩码
+用 UUID 低位作为实体查找的二进制 key，
+O(log n) 定位，避免 @e[tag=] 遍历…"></textarea>
+        <button class="btn btn-primary" onclick="saveInbox()">保存到收件箱</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Techniques Panel ── -->
+  <div id="tech-panel" class="panel">
+    <div class="tech-toolbar">
+      <input type="text" id="tech-search" placeholder="搜索技术名、标签…" oninput="searchTech(this.value)">
+      <select id="layer-filter" onchange="searchTech(document.getElementById('tech-search').value)" style="padding:6px 10px;border-radius:6px;font-size:13px;background:var(--card);color:var(--text);border:1px solid var(--border)">
+        <option value="">全部类型</option>
+        <option value="technique">technique</option>
+        <option value="concept">concept</option>
+        <option value="pattern">pattern</option>
+      </select>
+      <button class="btn btn-primary" onclick="newTechnique()">+ 新建</button>
+    </div>
+    <div class="tech-split">
+      <div class="tech-list" id="tech-list"></div>
+      <div class="tech-editor" id="tech-editor">
+        <div class="tech-placeholder">← 选择一个技术条目编辑</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Query Panel ── -->
+  <div id="query-panel" class="panel">
+    <div class="query-inner">
+      <div class="query-box">
+        <input type="text" id="query-input" placeholder="问一个 Minecraft 数据包问题…" onkeydown="if(e.key==='Enter')runQuery()">
+        <button class="btn btn-primary" onclick="runQuery()">提问</button>
+      </div>
+      <div class="hits" id="query-hits"></div>
+      <div class="answer-box loading" id="query-answer">在这里输入问题，知识库会检索相关技术并给出回答。</div>
+    </div>
+  </div>
+
+  <!-- ── Rate Panel ── -->
+  <div id="rate-panel" class="panel">
+    <div class="rate-wrap" id="rate-wrap">
+      <div class="rate-progress" id="rate-progress"></div>
+      <div class="rate-card" id="rate-card">
+        <div class="empty">加载中…</div>
+      </div>
+      <div class="rate-actions">
+        <button class="rate-btn rate-save" onclick="saveRateEdit()">保存编辑</button>
+        <button class="rate-btn rate-water" onclick="rateCurrent('water')">水 (1)</button>
+        <button class="rate-btn rate-ok" onclick="rateCurrent('ok')">一般 (2)</button>
+        <button class="rate-btn rate-core" onclick="rateCurrent('core')">核心 (3)</button>
+        <button class="rate-btn rate-skip" onclick="rateNext()">跳过 (→)</button>
+      </div>
+      <div class="rate-hint">Ctrl+S 保存编辑 / 1=水 / 2=一般 / 3=核心 / →=跳过 / ←=上一条</div>
+    </div>
+  </div>
+
+  <!-- ── Trash Panel ── -->
+  <div id="trash-panel" class="panel">
+    <div class="tech-toolbar" style="justify-content:space-between">
+      <span style="color:var(--muted);font-size:13px">回收站中的项目</span>
+      <button class="btn btn-ghost" style="color:#f87171;border-color:#f87171" onclick="emptyTrash()">清空回收站</button>
+    </div>
+    <div class="tech-list" style="width:100%;border-right:none" id="trash-list">
+      <div class="empty">回收站为空</div>
+    </div>
+  </div>
+</main>
+
+<!-- ── Structure Modal ── -->
+<div class="modal-bg" id="modal-bg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h2>✨ AI 结构化结果 <span id="modal-source" style="font-size:12px;color:var(--muted)"></span></h2>
+    <div class="field-row">
+      <div class="field"><label>技术名（中文）</label><input type="text" id="f-title-zh"></div>
+      <div class="field"><label>技术名（英文 snake_case）</label><input type="text" id="f-title-en"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>最低版本 (version_min)</label><input type="text" id="f-version-min" placeholder="如 1.20.5"></div>
+      <div class="field"><label>最高版本 (version_max，空=至今有效)</label><input type="text" id="f-version-max" placeholder="留空 或 如 1.20.4"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>类型</label>
+        <select id="f-layer">
+          <option value="technique" selected>technique — 具体技术点</option>
+          <option value="concept">concept — 基础概念/常识</option>
+          <option value="pattern">pattern — 设计模式</option>
+        </select>
+      </div>
+      <div class="field"><label>置信度</label>
+        <select id="f-confidence">
+          <option value="high">HIGH - 已验证</option>
+          <option value="medium" selected>MEDIUM - 待验证</option>
+          <option value="low">LOW - 推测/碎片</option>
+        </select>
+      </div>
+      <div class="field"><label>来源链接</label><input type="text" id="f-source-url"></div>
+    </div>
+    <div class="field">
+      <label>标签（回车添加）</label>
+      <div class="tag-input" id="tag-input" onclick="document.getElementById('tag-raw').focus()">
+        <input type="text" id="tag-raw" placeholder="输入标签后回车" onkeydown="handleTagInput(event)">
+      </div>
+    </div>
+    <div class="field"><label>核心洞见（一句话）</label><textarea id="f-insight" style="height:56px"></textarea></div>
+    <div class="field"><label>代码示例</label><textarea id="f-code" style="height:130px;font-family:monospace"></textarea></div>
+    <div class="field"><label>文件结构（每行一个路径）</label><textarea id="f-filestructure" style="height:70px;font-family:monospace" placeholder="data/<ns>/functions/tick.mcfunction"></textarea></div>
+    <div class="field"><label>用法（写完后怎么调用/触发）</label><textarea id="f-usage" style="height:70px"></textarea></div>
+    <div class="field"><label>使用场景</label><textarea id="f-usecases" style="height:70px"></textarea></div>
+    <div class="field"><label>机制原理</label><textarea id="f-mechanism"></textarea></div>
+    <div class="field"><label>注意事项（每行一条）</label><textarea id="f-notes" style="height:60px"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="confirmSave()">保存到技术库</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────
+let currentInboxFile = null;
+let currentTechId = null;
+let tags = [];
+
+// ── Tabs ───────────────────────────────────────────────────
+function switchTab(name, trigger = null) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(name + '-panel').classList.add('active');
+  (trigger || document.querySelector(`.tab[data-tab="${name}"]`))?.classList.add('active');
+  if (name === 'tech') loadTechList('');
+  if (name === 'inbox') loadInbox();
+  if (name === 'trash') loadTrash();
+  if (name === 'rate') loadRate();
+}
+
+// ── Toast ──────────────────────────────────────────────────
+function toast(msg, duration = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), duration);
+}
+
+// ── Rate (快速评分) ──────────────────────────────────────
+let rateList = [];
+let rateIdx = 0;
+let currentRateContent = '';
+
+async function loadRate() {
+  const res = await fetch('/api/techniques?q=&limit=1000');
+  rateList = await res.json();
+  // 未评分的排前面，已评分的排后面
+  rateList.sort((a, b) => {
+    const aw = a.quality ? 1 : 0, bw = b.quality ? 1 : 0;
+    if (aw !== bw) return aw - bw;
+    return a.id < b.id ? -1 : 1;
+  });
+  rateIdx = 0;
+  renderRateCard();
+}
+
+async function renderRateCard() {
+  const card = document.getElementById('rate-card');
+  const prog = document.getElementById('rate-progress');
+  if (!rateList.length) { card.innerHTML = '<div class="empty">没有条目</div>'; prog.textContent = ''; return; }
+  if (rateIdx >= rateList.length) {
+    card.innerHTML = '<div class="empty">✅ 全部过完了！</div>';
+    prog.textContent = '';
+    return;
+  }
+  const it = rateList[rateIdx];
+  const rated = rateList.filter(x => x.quality).length;
+  prog.textContent = `第 ${rateIdx + 1} / ${rateList.length} 条 · 已评分 ${rated} 条`;
+  // 拉正文
+  card.innerHTML = '<div class="empty">加载中…</div>';
+  const r = await fetch('/api/techniques/' + it.id);
+  const { content } = await r.json();
+  currentRateContent = content;
+  card.innerHTML = `
+    <div class="rate-title">${escHtml(it.title_zh || it.title_en || it.id)}</div>
+    <div class="rate-meta">
+      <span>${it.id}</span>
+      <span>${layerBadge(it.layer)}</span>
+      <span>${qBadge(it.quality)}</span>
+      <span>${(it.tags||[]).slice(0,4).join(' · ')}</span>
+    </div>
+    <textarea class="rate-body" id="rate-content" aria-label="评分条目 Markdown">${escHtml(content)}</textarea>
+  `;
+}
+
+function qBadge(q) {
+  const map = { core: ['q-core','核心'], ok: ['q-ok','一般'], water: ['q-water','水'] };
+  const v = map[q] || ['q-none','未评分'];
+  return `<span class="q-badge ${v[0]}">${v[1]}</span>`;
+}
+
+async function rateCurrent(quality) {
+  if (rateIdx >= rateList.length) return;
+  const it = rateList[rateIdx];
+  await fetch('/api/techniques/' + it.id + '/quality', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quality })
+  });
+  it.quality = quality;  // 本地同步
+  rateNext();
+}
+
+async function saveRateEdit() {
+  if (rateIdx >= rateList.length) return;
+  const editor = document.getElementById('rate-content');
+  if (!editor) return;
+  const tid = rateList[rateIdx].id;
+  const res = await fetch('/api/techniques/' + tid, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: editor.value })
+  });
+  if (!res.ok) { toast('保存失败'); return; }
+  currentRateContent = editor.value;
+  toast(`${tid} 已保存 ✓`);
+}
+
+function rateNext() {
+  if (rateIdx < rateList.length) rateIdx++;
+  renderRateCard();
+}
+
+function ratePrev() {
+  if (rateIdx > 0) rateIdx--;
+  renderRateCard();
+}
+
+// 键盘快捷键（仅在评分面板激活时生效）
+document.addEventListener('keydown', (e) => {
+  const panel = document.getElementById('rate-panel');
+  if (!panel || !panel.classList.contains('active')) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === '1') { rateCurrent('water'); e.preventDefault(); }
+  else if (e.key === '2') { rateCurrent('ok'); e.preventDefault(); }
+  else if (e.key === '3') { rateCurrent('core'); e.preventDefault(); }
+  else if (e.key === 'ArrowRight') { rateNext(); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft') { ratePrev(); e.preventDefault(); }
+});
+
+// ── Inbox ──────────────────────────────────────────────────
+let editingInboxFile = null;   // null = 新建, filename = 编辑中
+
+async function loadInbox() {
+  const res = await fetch('/api/inbox');
+  const items = await res.json();
+  const el = document.getElementById('inbox-list');
+  if (!items.length) { el.innerHTML = '<div class="empty">收件箱为空</div>'; return; }
+  el.innerHTML = items.map(it => `
+    <div class="inbox-card ${it.file === currentInboxFile ? 'selected' : ''}" onclick="editInbox('${it.file}')">
+      <div class="inbox-card-name">${it.file}</div>
+      <div class="inbox-card-preview">${escHtml(it.preview)}</div>
+      <div class="inbox-card-actions">
+        <button class="btn btn-primary btn-sm" style="padding:3px 10px;font-size:12px" onclick="event.stopPropagation();structureFile('${it.file}')">✨ AI 整理</button>
+        <button class="btn btn-ghost btn-sm" style="padding:3px 10px;font-size:12px" onclick="event.stopPropagation();deleteInbox('${it.file}')">回收</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateInboxButtonState() {
+  const btn = document.querySelector('.inbox-compose .btn-primary');
+  const title = document.getElementById('compose-title');
+  if (editingInboxFile) {
+    btn.textContent = '更新笔记';
+    btn.style.background = '#4ecca3';
+    btn.style.color = '#000';
+    if (title) title.textContent = '编辑: ' + editingInboxFile;
+  } else {
+    btn.textContent = '保存到收件箱';
+    btn.style.background = '';
+    btn.style.color = '';
+    if (title) title.textContent = '新建笔记';
+  }
+}
+
+function resetCompose() {
+  editingInboxFile = null;
+  document.getElementById('inbox-content').value = '';
+  document.getElementById('inbox-hint').value = '';
+  updateInboxButtonState();
+}
+
+async function saveInbox() {
+  const content = document.getElementById('inbox-content').value.trim();
+  if (!content) { toast('请输入内容'); return; }
+
+  if (editingInboxFile) {
+    // 更新已有文件
+    await fetch('/api/inbox/' + editingInboxFile, {
+      method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({content})
+    });
+    toast('已更新 ✓');
+  } else {
+    // 新建
+    const hint = document.getElementById('inbox-hint').value.trim();
+    await fetch('/api/inbox', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({content, hint}) });
+    toast('已保存到收件箱 ✓');
+    document.getElementById('inbox-hint').value = '';
+  }
+
+  document.getElementById('inbox-content').value = '';
+  editingInboxFile = null;
+  updateInboxButtonState();
+  loadInbox();
+}
+
+async function editInbox(file) {
+  const res = await fetch('/api/inbox/' + file);
+  if (!res.ok) { toast('读取失败'); return; }
+  const { content } = await res.json();
+  document.getElementById('inbox-content').value = content;
+  editingInboxFile = file;
+  updateInboxButtonState();
+  // 同时选中该卡片
+  currentInboxFile = file;
+  loadInbox();
+  toast('已加载到编辑区 ✎');
+}
+
+function selectInbox(file, el) {
+  currentInboxFile = file;
+  document.querySelectorAll('.inbox-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ── Trash ──────────────────────────────────────────────────
+async function loadTrash() {
+  const res = await fetch('/api/trash');
+  const items = await res.json();
+  const el = document.getElementById('trash-list');
+  if (!items.length) { el.innerHTML = '<div class="empty">回收站为空</div>'; return; }
+  el.innerHTML = items.map(it => `
+    <div class="inbox-card">
+      <div class="inbox-card-name">${it.type === 'technique' ? '📚' : '📥'} ${it.original} · ${it.title_zh || '收件箱笔记'}</div>
+      <div class="inbox-card-preview">${escHtml(it.content_preview)}</div>
+      <div class="inbox-card-actions">
+        <button class="btn btn-primary btn-sm" style="padding:3px 10px;font-size:12px;background:#4ecca3" onclick="restoreTrash('${it.original}')">恢复</button>
+        <button class="btn btn-ghost btn-sm" style="padding:3px 10px;font-size:12px;color:#f87171" onclick="permaDelete('${it.original}')">永久删除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function restoreTrash(key) {
+  const res = await fetch('/api/trash/' + encodeURIComponent(key) + '/restore', { method:'POST' });
+  if (!res.ok) { toast('恢复失败'); return; }
+  const data = await res.json();
+  toast((data.type === 'technique' ? '技术条目 ' : '笔记 ') + '已恢复 ✓');
+  loadTrash();
+}
+
+async function permaDelete(key) {
+  if (!confirm('永久删除后无法恢复，确定？')) return;
+  await fetch('/api/trash/' + encodeURIComponent(key), { method:'DELETE' });
+  toast('已永久删除');
+  loadTrash();
+}
+
+async function emptyTrash() {
+  if (!confirm('确认清空回收站？所有内容将被永久删除！')) return;
+  await fetch('/api/trash', { method:'DELETE' });
+  toast('回收站已清空');
+  loadTrash();
+}
+
+async function deleteInbox(file) {
+  await fetch('/api/inbox/' + file, { method: 'DELETE' });
+  if (currentInboxFile === file) currentInboxFile = null;
+  if (editingInboxFile === file) {
+    editingInboxFile = null;
+    document.getElementById('inbox-content').value = '';
+    updateInboxButtonState();
+  }
+  toast('已移到回收站');
+  loadInbox();
+}
+
+async function structureFile(file) {
+  toast('AI 整理中…', 10000);
+  const res = await fetch('/api/structure/' + file, { method: 'POST' });
+  if (!res.ok) { toast('AI 处理失败'); return; }
+  const { data } = await res.json();
+  openModal(data, file);
+}
+
+// ── Modal ──────────────────────────────────────────────────
+function openModal(data, inboxFile) {
+  document.getElementById('f-title-zh').value = data.title_zh || '';
+  document.getElementById('f-title-en').value = data.title_en || '';
+  document.getElementById('f-version-min').value = data.version_min || '';
+  document.getElementById('f-version-max').value = data.version_max || '';
+  document.getElementById('f-layer').value = data.layer || 'technique';
+  document.getElementById('f-confidence').value = data.confidence || 'medium';
+  document.getElementById('f-source-url').value = data.source_url || '';
+  document.getElementById('f-insight').value = data.core_insight || '';
+  document.getElementById('f-code').value = data.code_example || '';
+  document.getElementById('f-filestructure').value = (data.file_structure || []).join('\n');
+  document.getElementById('f-usage').value = data.usage || '';
+  document.getElementById('f-usecases').value = data.use_cases || '';
+  document.getElementById('f-mechanism').value = data.mechanism || '';
+  document.getElementById('f-notes').value = (data.notes || []).join('\n');
+  tags = [...(data.tags || [])];
+  renderTags();
+  document.getElementById('modal-source').textContent = inboxFile ? `← ${inboxFile}` : '';
+  document.getElementById('modal-bg').dataset.inbox = inboxFile || '';
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-bg').classList.remove('open');
+}
+
+async function confirmSave() {
+  const payload = {
+    title_zh: document.getElementById('f-title-zh').value.trim(),
+    title_en: document.getElementById('f-title-en').value.trim(),
+    version_min: document.getElementById('f-version-min').value.trim(),
+    version_max: document.getElementById('f-version-max').value.trim(),
+    layer: document.getElementById('f-layer').value,
+    confidence: document.getElementById('f-confidence').value,
+    source_url: document.getElementById('f-source-url').value.trim(),
+    source_type: 'manual',
+    wiki_covers_this: false,
+    tags,
+    core_insight: document.getElementById('f-insight').value.trim(),
+    code_example: document.getElementById('f-code').value.trim(),
+    file_structure: document.getElementById('f-filestructure').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    usage: document.getElementById('f-usage').value.trim(),
+    use_cases: document.getElementById('f-usecases').value.trim(),
+    mechanism: document.getElementById('f-mechanism').value.trim(),
+    notes: document.getElementById('f-notes').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    inbox_file: document.getElementById('modal-bg').dataset.inbox || null,
+  };
+  if (!payload.title_zh) { toast('请填写技术名称'); return; }
+  const res = await fetch('/api/techniques', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  const data = await res.json();
+  closeModal();
+  toast(`已保存 ${data.id} ✓`);
+  loadInbox();
+}
+
+// Tags
+function renderTags() {
+  const el = document.getElementById('tag-input');
+  const inp = document.getElementById('tag-raw');
+  el.innerHTML = '';
+  tags.forEach((t, i) => {
+    const span = document.createElement('div');
+    span.className = 'tag';
+    span.innerHTML = `${escHtml(t)} <span onclick="removeTag(${i})">×</span>`;
+    el.appendChild(span);
+  });
+  el.appendChild(inp);
+}
+function handleTagInput(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const v = e.target.value.trim().replace(/,/g,'');
+    if (v && !tags.includes(v)) { tags.push(v); renderTags(); }
+    e.target.value = '';
+  }
+}
+function removeTag(i) { tags.splice(i, 1); renderTags(); }
+
+// ── Techniques ─────────────────────────────────────────────
+async function loadTechList(q) {
+  const layer = document.getElementById('layer-filter')?.value || '';
+  const res = await fetch('/api/techniques?q=' + encodeURIComponent(q) + '&limit=200&layer=' + encodeURIComponent(layer));
+  const items = await res.json();
+  const el = document.getElementById('tech-list');
+  if (!items.length) { el.innerHTML = '<div class="empty">无结果</div>'; return; }
+  el.innerHTML = items.map(it => `
+    <div class="tech-item ${it.id === currentTechId ? 'selected' : ''}" onclick="loadTech('${it.id}', this)">
+      <div class="tech-item-id">${it.id} &middot; ${layerBadge(it.layer)} ${confBadge(it.confidence)} ${it.quality ? qBadge(it.quality) : ''} ${versionRange(it.version_min, it.version_max)}</div>
+      <div class="tech-item-title">${escHtml(it.title_zh || it.title_en || '')}</div>
+      <div class="tech-item-tags">${(it.tags||[]).slice(0,3).map(t=>`<span class="pill">${t}</span>`).join('')}</div>
+    </div>
+  `).join('');
+}
+
+let searchTimer;
+function searchTech(q) {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadTechList(q), 200);
+}
+
+async function loadTech(tid, el) {
+  currentTechId = tid;
+  document.querySelectorAll('.tech-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  const res = await fetch('/api/techniques/' + tid);
+  const { content, file } = await res.json();
+  document.getElementById('tech-editor').innerHTML = `
+    <div class="tech-editor-toolbar">
+      <span>${file}</span>
+      <label style="font-size:12px;color:var(--muted)">置信度</label>
+      <select onchange="updateConfidence('${tid}', this.value)" id="conf-select-${tid}">
+        <option value="high">HIGH</option>
+        <option value="medium" selected>MEDIUM</option>
+        <option value="low">LOW</option>
+      </select>
+      <button class="btn" style="padding:5px 12px;font-size:12px;background:#4ade80;color:#000" onclick="saveTech('${tid}')">保存</button>
+
+      <button class="btn" style="padding:5px 12px;font-size:12px;background:#f87171;color:#000" onclick="deleteTech('${tid}')">回收</button>
+    </div>
+    <textarea id="tech-content">${escHtml(content)}</textarea>
+  `;
+  // 从已有 YAML 里解析置信度并设置
+  const match = content.match(/confidence:\s*(\w+)/);
+  if (match) {
+    const sel = document.getElementById('conf-select-' + tid);
+    if (sel) sel.value = match[1];
+  }
+}
+
+async function saveTech(tid) {
+  const content = document.getElementById('tech-content').value;
+  await fetch('/api/techniques/' + tid, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content}) });
+  toast('已保存 ✓');
+}
+
+async function updateConfidence(tid, value) {
+  const el = document.getElementById('tech-content');
+  let content = el.value;
+  if (content.match(/^confidence:\s*\w+/m)) {
+    content = content.replace(/^confidence:\s*\w+/m, 'confidence: ' + value);
+  } else {
+    content = content.replace(/(wiki_covers_this:\s*(?:true|false))/m, '$1\nconfidence: ' + value);
+  }
+  el.value = content;
+  await fetch('/api/techniques/' + tid, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content}) });
+  loadTechList(document.getElementById('tech-search').value);
+}
+
+async function deleteTech(tid) {
+  if (!confirm('将 ' + tid + ' 移到回收站？')) return;
+  await fetch('/api/techniques/' + tid, { method:'DELETE' });
+  currentTechId = null;
+  document.getElementById('tech-editor').innerHTML = '<div class="tech-placeholder">← 选择一个技术条目编辑</div>';
+  loadTechList(document.getElementById('tech-search').value);
+  toast('已移到回收站');
+}
+
+function newTechnique() {
+  openModal({}, null);
+}
+
+// ── Query ──────────────────────────────────────────────────
+async function runQuery() {
+  const q = document.getElementById('query-input').value.trim();
+  if (!q) return;
+  const ansEl = document.getElementById('query-answer');
+  const hitsEl = document.getElementById('query-hits');
+  ansEl.textContent = '检索中…';
+  ansEl.className = 'answer-box loading';
+  hitsEl.innerHTML = '';
+  const res = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({question: q}) });
+  if (!res.ok) { ansEl.textContent = '请求失败'; return; }
+  const { hits, answer } = await res.json();
+  hitsEl.innerHTML = hits.map(h => `<span class="hit-pill" title="dist=${h.dist}">[${h.id}] ${escHtml(h.title)}</span>`).join('');
+  ansEl.className = 'answer-box';
+  ansEl.textContent = answer;
+}
+
+document.getElementById('query-input').addEventListener('keydown', e => { if (e.key === 'Enter') runQuery(); });
+
+// ── RAG ────────────────────────────────────────────────────
+async function rebuildRAG() {
+  const btn = document.getElementById('rag-btn');
+  btn.disabled = true; btn.textContent = '重建中…';
+  await fetch('/api/rebuild-rag', { method:'POST' });
+  toast('RAG 重建已启动，约30秒完成');
+  setTimeout(() => { btn.disabled = false; btn.textContent = '重建索引'; }, 35000);
+}
+
+// ── Utils ──────────────────────────────────────────────────
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function confBadge(c) { return `<span class="conf-badge ${c==='high'?'conf-high':c==='low'?'conf-low':'conf-medium'}">${c||'medium'}</span>`; }
+function layerBadge(l) {
+  const map = {technique:'#4ecca3', concept:'#a78bfa', pattern:'#fb923c'};
+  const col = map[l] || '#888';
+  return `<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${col}22;color:${col};border:1px solid ${col}55">${l||'technique'}</span>`;
+}
+function versionRange(min, max) {
+  if (!min && !max) return '';
+  const lo = min || '?';
+  const hi = max ? max : '→';
+  return `<span style="font-size:10px;color:var(--muted)">${lo}~${hi}</span>`;
+}
+
+// Init
+loadInbox();
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    if (document.getElementById('rate-panel').classList.contains('active')) {
+      saveRateEdit();
+    } else if (document.getElementById('tech-panel').classList.contains('active') && currentTechId) {
+      saveTech(currentTechId);
+    } else if (document.getElementById('inbox-panel').classList.contains('active')) {
+      saveInbox();
+    }
+  }
+});
+</script>
+</body>
+</html>

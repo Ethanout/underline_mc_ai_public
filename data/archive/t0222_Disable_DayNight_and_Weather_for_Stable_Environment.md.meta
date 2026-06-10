@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0222",
+  "original": "t0222_Disable_DayNight_and_Weather_for_Stable_Environment.md",
+  "source": "techniques",
+  "content": "---\nid: t0222\ntitle: 禁用昼夜与天气循环以稳定环境\ntitle_en: Disable Day/Night and Weather for Stable Environment\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-commands/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"environment\", \"stability\", \"game-design\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n同时设置 doDaylightCycle 和 doWeatherCycle 为 false 可以完全固定时间和天气，避免环境变化干扰数据包逻辑。\n\n## 代码示例\n\n```mcfunction\ngamerule doDaylightCycle false\ngamerule doWeatherCycle false\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\n这两个规则分别控制时间和天气是否自动变化。设为 false 后，时间和天气完全由命令控制，适合需要恒定环境（如小游戏、展示）的场景。\n\n## 注意事项\n\n- 常见误解：开发者可能只设置 time set 或 weather clear，但循环仍在后台运行，导致意外变化。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.773667"
+}

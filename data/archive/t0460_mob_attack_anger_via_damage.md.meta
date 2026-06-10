@@ -1,0 +1,27 @@
+{
+  "type": "technique",
+  "id": "t0460",
+  "original": "t0460_mob_attack_anger_via_damage.md",
+  "source": "techniques",
+  "content": "---\nid: t0460\ntitle: \"伤害命令激怒生物\"\ntitle_en: \"mob_attack_anger_via_damage\"\nlayer: technique\nsource_url: \"https://minecraftcommands.github.io/wiki/questions/angermob\"\nsource_type: \"mcc_wiki\"\nsource_issue: \"questions/angermob\"\nversion_min: \"1.19.4\"\nversion_max: \"\"\nwiki_covers_this: false\nconfidence: medium\ntags: [\"damage\", \"mob\", \"anger\", \"hate\", \"targeting\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n利用 /damage 命令造成0点伤害，可以欺骗生物使其攻击指定的目标实体\n\n## 代码示例\n\n```mcfunction\n# bedrock\n/damage @e[type=wolf,c=1] 0 entity_attack entity @p\n# java\n/damage @e[type=wolf,limit=1,sort=nearest] 0 player_attack by @p\n\n# bedrock\n/damage @e[type=skeleton] 0 entity_attack entity @e[type=zombie]\n# java\n/execute as @e[type=skeleton] run damage @s 0 player_attack by @e[type=zombie,limit=1]\n```\n\n## 文件结构\n\n（待补充）\n\n## 用法\n\n在命令方块或函数中直接运行对应版本的 /damage 命令即可。无需额外文件结构。\n\n## 使用场景\n\n['让任意可攻击生物（如狼、骷髅）攻击指定玩家或实体，用于陷阱、剧情事件或自定义战斗', '在不实际造成伤害的前提下触发生物的仇恨机制，用于测试或视觉效果']\n\n## 机制原理\n\nMinecraft 中，大多数可攻击生物会对攻击它们的实体产生仇恨并反击。/damage 命令可以指定伤害来源实体（source entity），即使伤害量为0，游戏仍会记录该伤害来源，触发目标生物的仇恨系统。因此，通过 /damage 命令让目标生物受到来自指定实体的0点伤害，即可欺骗目标生物，使其认为被该实体攻击，从而主动反击。此方法利用了游戏内置的仇恨机制，无需修改行为文件或生成投射物。\n\n## 注意事项\n\n- 在基岩版中，许多实体有严格的可攻击目标列表（由行为包定义），如果目标不在列表中，即使使用 /damage 也无法激怒该生物（原文表述需核实）\n- 伤害量设为0不会实际减少生命值，但可能触发其他伤害相关效果（如击退、音效等），具体取决于伤害类型\n- Java 版和基岩版的命令语法略有不同，需注意区分\n",
+  "index_entry": {
+    "file": "entries/t0460_mob_attack_anger_via_damage.md",
+    "title_zh": "伤害命令激怒生物",
+    "title_en": "mob_attack_anger_via_damage",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/angermob",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.19.4",
+    "tags": [
+      "damage",
+      "mob",
+      "anger",
+      "hate",
+      "targeting"
+    ],
+    "verified_in_game": false
+  },
+  "purge_reason": "duplicate_replaced_by_newer_extraction",
+  "purged_at": "2026-06-05T17:03:16.669773"
+}

@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0290",
+  "original": "t0290_Smithed_Namespace_Prefix_Convention.md",
+  "source": "techniques",
+  "content": "---\nid: t0290\ntitle: Smithed 命名空间前缀约定\ntitle_en: Smithed Namespace Prefix Convention\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-datapack/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"interoperability\", \"namespacing\", \"multi-pack\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n在多包环境中，所有包特定标识符（计分板、存储、实体标签）都必须使用包前缀，否则不同包之间必然发生冲突。\n\n## 代码示例\n\n```mcfunction\nscoreboard objectives add tcc.dummy dummy\ndata merge storage tcc:data {foo: \"bar\"}\ntag @s add tcc.custom_entity\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\n计分板目标使用点分隔前缀（如 tcc.dummy），存储路径使用冒号分隔（如 tcc:data），实体标签使用点分隔前缀（如 tcc.custom_entity）。这些前缀确保不同包的同名标识符不会互相覆盖。\n\n## 注意事项\n\n- 常见误解：开发者常认为只要使用自己的命名空间（如 tcc:）就足够安全，但计分板目标和实体标签是全局的，没有命名空间机制，必须手动加前缀。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.809384"
+}

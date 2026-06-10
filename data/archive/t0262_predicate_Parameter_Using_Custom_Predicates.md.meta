@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0262",
+  "original": "t0262_predicate_Parameter_Using_Custom_Predicates.md",
+  "source": "techniques",
+  "content": "---\nid: t0262\ntitle: predicate 参数：使用自定义谓词\ntitle_en: \"predicate Parameter: Using Custom Predicates\"\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-commands/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"target-selector\", \"predicate\", \"custom-condition\", \"data-pack\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\npredicate 可以引用数据包中的谓词文件（JSON），实现复杂的条件筛选，如检查生物群系、方块状态、实体属性等，比 nbt 更灵活。\n\n## 代码示例\n\n```mcfunction\n# 选择满足自定义谓词 'my_pack:is_in_forest' 的玩家\ntellraw @a[predicate=my_pack:is_in_forest] {\"text\":\"在森林中\"}\n# 多个谓词 AND 条件\ntellraw @a[predicate=my_pack:is_in_forest,my_pack:has_iron_armor] {\"text\":\"森林中的铁甲玩家\"}\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\npredicate 参数接受一个或多个谓词路径（如 'example:check_biome'），实体必须满足所有谓词条件。谓词文件位于 data/<命名空间>/predicates/ 下，支持多种条件类型。\n\n## 注意事项\n\n- 常见误解：很多人以为只能用 nbt 或 scores 做复杂筛选，但 predicate 可以复用且支持条件组合。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.790912"
+}

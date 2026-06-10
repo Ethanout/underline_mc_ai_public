@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0220",
+  "original": "t0220_Max_Command_Chain_Length_Tuning.md",
+  "source": "techniques",
+  "content": "---\nid: t0220\ntitle: 命令链长度上限调整\ntitle_en: Max Command Chain Length Tuning\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-commands/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"debug\", \"performance\", \"safety\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n通过降低 maxCommandChainLength 可以强制检测并避免意外的无限递归命令链，而不是依赖默认的 65536 上限。\n\n## 代码示例\n\n```mcfunction\ngamerule maxCommandChainLength 256\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\n该规则控制单个游戏刻内函数/命令方块链可执行的最大命令数。降低该值（如 256）可以在开发阶段快速暴露递归或循环调用问题，避免服务器卡死。\n\n## 注意事项\n\n- 常见误解：开发者常认为这个值越大越好，或者默认值足够安全，不会主动调整。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.772572"
+}

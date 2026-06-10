@@ -1,0 +1,21 @@
+scoreboard players operation p.temp u.variable = p.x u.variable
+scoreboard players operation p.temp u.variable *= p.x u.variable
+scoreboard players operation #t1 u.variable = p.y u.variable
+scoreboard players operation #t1 u.variable *= p.y u.variable
+scoreboard players operation #t2 u.variable = p.z u.variable
+scoreboard players operation #t2 u.variable *= p.z u.variable
+scoreboard players operation #t3 u.variable = p.w u.variable
+scoreboard players operation #t3 u.variable *= p.w u.variable
+scoreboard players operation p.temp u.variable += #t1 u.variable
+scoreboard players operation p.temp u.variable += #t2 u.variable
+scoreboard players operation p.temp u.variable += #t3 u.variable
+scoreboard players remove p.temp u.variable 300000000
+scoreboard players operation p.temp u.variable /= #-20000 u.constant
+scoreboard players operation p.x u.variable *= p.temp u.variable
+scoreboard players operation p.y u.variable *= p.temp u.variable
+scoreboard players operation p.z u.variable *= p.temp u.variable
+scoreboard players operation p.w u.variable *= p.temp u.variable
+scoreboard players operation p.x u.variable /= #10000 u.constant
+scoreboard players operation p.y u.variable /= #10000 u.constant
+scoreboard players operation p.z u.variable /= #10000 u.constant
+scoreboard players operation p.w u.variable /= #10000 u.constant

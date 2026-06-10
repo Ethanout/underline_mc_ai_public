@@ -1,0 +1,17 @@
+{
+    "criteria": {
+        "1":{
+            "trigger": "consume_item",
+            "conditions": {
+                "item": {
+                    "predicates": {
+                        "custom_data": "{sample:1b,sample_type:1}"
+                    }
+                }
+            }
+        }
+    },
+    "rewards": {
+        "function": "consumable_click:trigger"
+    }
+}

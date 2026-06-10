@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0254",
+  "original": "t0254_Tick_Sprint_Acceleration.md",
+  "source": "techniques",
+  "content": "---\nid: t0254\ntitle: 游戏刻加速冲刺\ntitle_en: Tick Sprint Acceleration\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-commands/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"tick\", \"speed\", \"testing\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n使用 `/tick sprint` 可以临时加速游戏刻运行，用于快速跳过等待时间或测试长时间运行的效果。\n\n## 代码示例\n\n```mcfunction\n# 加速运行100刻（约5秒正常时间）\n/tick sprint 100\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\n`/tick sprint <time>` 以最大速度运行指定数量的刻（默认20刻/秒），完成后自动恢复原速率。\n\n## 注意事项\n\n- 常见误解：开发者认为只能通过修改游戏规则或使用命令方块循环来加速时间。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.787403"
+}

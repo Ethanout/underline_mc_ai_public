@@ -1,0 +1,5 @@
+#换回物品
+execute if items entity @s weapon.mainhand *[custom_data~{sample_remainder:1b}] run item replace entity @s weapon.mainhand with firework_star[consumable={animation:"none",has_consume_particles:false,consume_seconds:9999,sound:{sound_id:"none"}},custom_data={sample:1b,sample_type:3},use_remainder={id:firework_star,components:{custom_data:{sample_remainder:1b}}},custom_name='{"text": "consumable组件：松发"}',lore=['{"text": "长按后松开触发"}','{"text": "会消耗物品"}','{"text": "用返还组件返回一个物品用于检测换回"}']]
+execute if items entity @s weapon.offhand *[custom_data~{sample_remainder:1b}] run item replace entity @s weapon.offhand with firework_star[consumable={animation:"none",has_consume_particles:false,consume_seconds:9999,sound:{sound_id:"none"}},custom_data={sample:1b,sample_type:3},use_remainder={id:firework_star,components:{custom_data:{sample_remainder:1b}}},custom_name='{"text": "consumable组件：松发"}',lore=['{"text": "长按后松开触发"}','{"text": "会消耗物品"}','{"text": "用返还组件返回一个物品用于检测换回"}']]
+
+tag @s remove sample_consume_temp

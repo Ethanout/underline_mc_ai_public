@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0269",
+  "original": "t0269_Enabling_Experimental_Content_with_features_Field.md",
+  "source": "techniques",
+  "content": "---\nid: t0269\ntitle: 使用 features 字段启用实验性内容\ntitle_en: Enabling Experimental Content with features Field\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-datapack/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"pack.mcmeta\", \"实验性内容\", \"数据包配置\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n在 pack.mcmeta 中添加 features 字段可以启用实验性游戏内容（如 1.21 更新），但数据包必须在创建世界时添加，否则实验性内容不会生效。\n\n## 代码示例\n\n```mcfunction\n{\n  \"pack\": {\n    \"description\": \"Experimental Pack\",\n    \"min_format\": [101, 1],\n    \"max_format\": [101, 1]\n  },\n  \"features\": {\n    \"enabled\": [\"minecraft:update_1_21\"]\n  }\n}\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\npack.mcmeta 支持一个可选的 features 对象，其中包含一个 enabled 数组，列出要启用的实验性特性（如 \"minecraft:update_1_21\"）。当数据包包含此字段时，它必须在创建新世界时被添加，否则实验性内容不会生效。这允许数据包利用尚未正式发布的游戏功能。\n\n## 注意事项\n\n- 常见误解：开发者可能认为在 pack.mcmeta 中声明 features 后，数据包可以随时启用实验性内容，而不知道这需要在世界创建时添加。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.803477"
+}

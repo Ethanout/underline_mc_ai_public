@@ -1,0 +1,1 @@
+execute as @a[tag=sample_consume_temp] run function consumable_hold:return_

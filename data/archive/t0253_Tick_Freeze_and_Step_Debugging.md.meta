@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0253",
+  "original": "t0253_Tick_Freeze_and_Step_Debugging.md",
+  "source": "techniques",
+  "content": "---\nid: t0253\ntitle: 游戏刻冻结与单步调试\ntitle_en: Tick Freeze and Step Debugging\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-commands/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"debug\", \"tick\", \"single-step\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n通过冻结游戏刻并逐步执行，可以精确控制游戏逻辑的每一步，用于调试复杂机制或观察瞬间状态变化。\n\n## 代码示例\n\n```mcfunction\n# 冻结游戏\n/tick freeze\n# 单步执行1刻\n/tick step 1\n# 继续执行\n/tick unfreeze\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\n`/tick freeze` 暂停所有游戏刻更新，但玩家仍可移动和交互；`/tick step` 执行指定数量的刻后自动暂停，允许逐步观察逻辑执行。\n\n## 注意事项\n\n- 常见误解：开发者通常认为游戏刻无法暂停或单步执行，只能通过降低速率来模拟。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.786500"
+}

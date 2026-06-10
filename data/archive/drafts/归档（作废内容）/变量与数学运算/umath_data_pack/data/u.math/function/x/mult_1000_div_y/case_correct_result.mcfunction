@@ -1,0 +1,4 @@
+scoreboard players operation #t3 u.variable *= x u.variable
+scoreboard players operation #t3 u.variable -= #t2 u.variable
+execute if score y u.variable matches 0.. run return run execute if score #t3 u.variable matches 0.. run scoreboard players remove x u.variable 1
+execute if score #t3 u.variable matches ..-1 run scoreboard players remove x u.variable 1

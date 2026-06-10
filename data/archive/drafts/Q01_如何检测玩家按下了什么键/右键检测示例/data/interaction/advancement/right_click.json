@@ -1,0 +1,15 @@
+{
+    "criteria": {
+        "1":{
+            "trigger": "player_interacted_with_entity",
+            "conditions": {
+                "entity": {
+                    "type": "interaction"
+                }
+            }
+        }
+    },
+    "rewards": {
+        "function": "interaction:detect/right_click"
+    }
+}

@@ -1,0 +1,26 @@
+{
+  "type": "technique",
+  "id": "t0497",
+  "original": "t0497_count_entities_with_execute_store.md",
+  "source": "techniques",
+  "content": "---\nid: t0497\ntitle: \"实体计数存储\"\ntitle_en: \"count_entities_with_execute_store\"\nlayer: technique\nsource_url: \"https://minecraftcommands.github.io/wiki/questions/numplayers\"\nsource_type: \"mcc_wiki\"\nsource_issue: \"questions/numplayers\"\nversion_min: \"1.13\"\nversion_max: \"\"\nwiki_covers_this: false\nconfidence: medium\ntags: [\"entity counting\", \"execute store\", \"scoreboard\", \"selector\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\nexecute store result 可以将实体选择器的匹配数量直接存入记分板，无需循环累加\n\n## 代码示例\n\n```mcfunction\nscoreboard objectives add result dummy\nexecute store result score #count result if entity @a[team=red]\nexecute if score #count result matches 2 run say there are exactly 2 players on team red.\n```\n\n## 文件结构\n\n- data/<namespace>/functions/check_players.mcfunction\n\n## 用法\n\n在函数中依次执行上述三条命令，或通过命令方块/函数调用。第一条命令创建记分板（只需执行一次），后两条命令组合使用即可检测精确人数。\n\n## 使用场景\n\n['检测团队中是否有恰好2名玩家以触发特定游戏机制', '检测区域内实体数量是否在指定范围内（如2-9个）', '替代循环累加计数方式，简化记分板操作']\n\n## 机制原理\n\nexecute store result score <目标> <记分板> if entity <选择器> 会将 if entity 命令的返回结果（即匹配的实体数量）存储到指定记分板分数中。if entity 命令本身返回的是匹配实体数量（成功次数），store result 捕获这个数值。然后通过 execute if score ... matches <范围> 来检测该数值是否满足条件。这与朴素实现（循环累加）不同，它直接利用命令返回值，无需中间实体或循环，更简洁高效。\n\n## 注意事项\n\n- 需要 1.13 及以上版本\n- fake player #count 是推荐的存储目标，避免使用实体\n- matches 支持范围语法，如 2.. 表示2及以上，..2 表示2及以下\n",
+  "index_entry": {
+    "file": "entries/t0497_count_entities_with_execute_store.md",
+    "title_zh": "实体计数存储",
+    "title_en": "count_entities_with_execute_store",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/numplayers",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "entity counting",
+      "execute store",
+      "scoreboard",
+      "selector"
+    ],
+    "verified_in_game": false
+  },
+  "purge_reason": "duplicate_replaced_by_newer_extraction",
+  "purged_at": "2026-06-05T17:03:16.686216"
+}

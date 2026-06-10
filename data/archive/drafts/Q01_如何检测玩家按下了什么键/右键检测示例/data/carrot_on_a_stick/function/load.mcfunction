@@ -1,0 +1,1 @@
+scoreboard objectives add sample_coas used:carrot_on_a_stick

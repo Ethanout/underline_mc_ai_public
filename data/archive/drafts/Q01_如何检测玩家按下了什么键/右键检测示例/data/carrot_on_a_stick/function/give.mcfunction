@@ -1,0 +1,1 @@
+give @s carrot_on_a_stick[custom_data={sample:1b},custom_name='{"text": "胡萝卜钓竿法"}',lore=['{"text": "右键在消息栏输出“1”；"}','{"text": "每0.2秒触发一次"}','{"text": "可同时使用左键操作"}']]

@@ -1,0 +1,32 @@
+[project]
+name = "underline-mc-ai"
+version = "0.1.0"
+description = "Minecraft Datapack Knowledge Base — crawl, extract, validate, and query datapack techniques"
+requires-python = ">=3.10"
+readme = "README.md"
+license = { text = "MIT" }
+
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "pydantic>=2.0.0",
+    "requests>=2.31.0",
+    "openai>=1.0.0",
+    "beet>=0.112.0",
+    "bolt>=0.49.0",
+    "mecha>=0.99.0",
+]
+
+[project.optional-dependencies]
+rag = ["chromadb>=0.4.0"]
+crawl = ["beautifulsoup4>=4.12.0"]
+datapack = ["beet", "bolt", "bolt-expressions", "mecha"]
+dev = ["pip-tools>=7.0.0"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]

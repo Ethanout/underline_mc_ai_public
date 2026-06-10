@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0196",
+  "original": "t0196_Item_Durability_Changed_Trigger.md",
+  "source": "techniques",
+  "content": "---\nid: t0196\ntitle: 物品耐久度变化触发器\ntitle_en: Item Durability Changed Trigger\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-advancement/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"advancement\", \"trigger\", \"durability\", \"item\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n`item_durability_changed` 可以检测任何物品的耐久度变化，包括工具、武器、盔甲等，而不仅仅是特定物品。\n\n## 代码示例\n\n```mcfunction\nadvancement grant @s only minecraft:adventure/durability_changed\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\n当玩家物品栏中任何物品的耐久度发生变化时，`item_durability_changed` 触发器会被激活，可以检测变化前后的耐久度值。\n\n## 注意事项\n\n- 常见误解：开发者可能认为只有工具或武器才有耐久度变化，但实际上任何有耐久度的物品（如盔甲、钓鱼竿）都可以被检测。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.723317"
+}

@@ -1,0 +1,16 @@
+scoreboard players operation #t1 u.variable = x u.variable
+execute store result score #t2 u.variable run scoreboard players operation #t1 u.variable /= z u.variable
+execute store result score #t3 u.variable run scoreboard players operation x u.variable %= z u.variable
+scoreboard players operation #t4 u.variable = y u.variable
+scoreboard players operation #t4 u.variable /= z u.variable
+scoreboard players operation y u.variable %= z u.variable
+scoreboard players operation #t1 u.variable *= #t4 u.variable
+scoreboard players operation #t1 u.variable *= z u.variable
+scoreboard players operation #t2 u.variable *= y u.variable
+scoreboard players operation x u.variable *= #t4 u.variable
+execute store result score #t3 u.variable run scoreboard players operation y u.variable *= #t3 u.variable
+scoreboard players operation #t3 u.variable /= z u.variable
+scoreboard players operation x u.variable += #t1 u.variable
+scoreboard players operation x u.variable += #t2 u.variable
+scoreboard players operation x u.variable += #t3 u.variable
+scoreboard players operation y u.variable %= z u.variable

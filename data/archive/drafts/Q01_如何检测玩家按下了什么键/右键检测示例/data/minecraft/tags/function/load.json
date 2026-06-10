@@ -1,0 +1,7 @@
+{
+    "values": [
+        "carrot_on_a_stick:load",
+        "interaction:load",
+        "consumable_release:load"
+    ]
+}

@@ -1,0 +1,2 @@
+scoreboard objectives add consume_use dummy
+scoreboard objectives add consume_use_lt dummy

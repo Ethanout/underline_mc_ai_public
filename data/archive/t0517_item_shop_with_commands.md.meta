@@ -1,0 +1,27 @@
+{
+  "type": "technique",
+  "id": "t0517",
+  "original": "t0517_item_shop_with_commands.md",
+  "source": "techniques",
+  "content": "---\nid: t0517\ntitle: \"物品交易商店\"\ntitle_en: \"item_shop_with_commands\"\nlayer: technique\nsource_url: \"https://minecraftcommands.github.io/wiki/questions/shop\"\nsource_type: \"mcc_wiki\"\nsource_issue: \"questions/shop\"\nversion_min: \"1.13\"\nversion_max: \"\"\nwiki_covers_this: false\nconfidence: medium\ntags: [\"shop\", \"item-trading\", \"scoreboard\", \"clear-command\", \"tag-system\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n通过记分板存储物品数量并配合标签选择器，可以实现基于物品交换的玩家商店系统\n\n## 代码示例\n\n```mcfunction\n# Command blocks\ntag @p add buyer.netherite\nexecute as @a[tag=buyer.netherite] store result score @s diamonds run clear @s diamond 0\ngive @a[tag=buyer.netherite,scores={diamonds=5..}] netherite_ingot 1\nclear @a[tag=buyer.netherite,scores={diamonds=5..}] diamond 5\ntellraw @a[tag=buyer.netherite,scores={diamonds=5..}] {\"text\":\"You bought a netherite ingot for 5 diamonds\",\"color\":\"green\"}\ntellraw @a[tag=buyer.netherite,scores={diamonds=..4}] {\"text\":\"You don't have 5 diamonds\",\"color\":\"dark_red\"}\ntag @a remove buyer.netherite\n\n# function example:load\nscoreboard objectives add diamonds dummy\n\n# function example:buy/netherite\nexecute store result score @s diamonds run clear @s diamond 0\nexecute if entity @s[scores={diamonds=5..}] run function example:buy/netherite/success\nexecute unless entity @s[scores={diamonds=5..}] run tellraw @s {\"text\":\"You don't have 5 diamonds\",\"color\":\"dark_red\"}\n\n# function example:buy/netheirte/success\ngive @s netherite_ingot 1\nclear @s diamond 5\ntellraw @s {\"text\":\"You bought a netherite ingot for 5 diamonds\",\"color\":\"green\"}\n\n# 1.20.5+ alternative counting command (replace in function)\nexecute store result score @s diamonds if items entity @s container.* diamond\n\n# Command blocks for multiple items\ntag @p add buyer.example\nexecute as @a[tag=buyer.example] run tag @s[scores={diamonds=5..,emeralds=2..}] add buy.example\nclear @a[tag=buy.example] diamond 5\nclear @a[tag=buy.example] emerald 2\ngive @a[tag=buy.example] gold_block 1\ntag @a remove buy.example\ntag @a remove buyer.example\n```\n\n## 文件结构\n\n- data/example/functions/load.mcfunction\n- data/example/functions/buy/netherite.mcfunction\n- data/example/functions/buy/netherite/success.mcfunction\n- data/example/functions/buy/diamond.mcfunction\n- data/example/functions/buy/diamond/success.mcfunction\n\n## 用法\n\n对于命令方块版本：放置一个按钮或压力板连接命令方块链，玩家触发后自动执行。对于函数版本：通过 `execute as <player> run function example:buy/netherite` 调用，函数必须以玩家身份执行（as）。\n\n## 使用场景\n\n['服务器中创建用物品交换物品的商店（如用5个钻石换1个下界合金锭）', '需要精确控制交易条件（如玩家必须有足够物品才能交易）的场景', '不适合需要复杂交易逻辑（如多物品组合、动态定价）的场景，此时应考虑更高级的架构']\n\n## 机制原理\n\n该技术利用 `clear` 命令的计数功能（`clear @s diamond 0` 返回玩家拥有的钻石数量）配合 `execute store result score` 将数量存入记分板。然后通过 `scores={diamonds=5..}` 选择器筛选出拥有足够物品的玩家，执行给予和清除操作。关键点在于：1）使用标签（tag）确保命令块版本中正确选择目标玩家；2）函数版本利用 `@s` 保持上下文；3）先检查数量再执行交易，避免部分扣除。对于1.20.5+，`execute if items` 提供了更直接的物品计数方式，无需消耗物品。多物品交易时，需要为每个物品创建独立的记分板，并通过嵌套标签确保玩家同时拥有所有所需物品。\n\n## 注意事项\n\n- 命令块版本中，必须在最后移除标签，避免玩家被意外重新选中\n- 函数 `example:buy/netherite` 必须以玩家身份执行（as）\n- 1.20.5+ 推荐使用 `execute if items` 替代 `clear` 计数，但该方法不兼容低于1.20.5的版本\n- 清除物品必须在移除标签之前完成，否则可能导致玩家未扣除物品但获得商品\n- 多物品交易时，需要为每个物品创建独立的记分板\n",
+  "index_entry": {
+    "file": "entries/t0517_item_shop_with_commands.md",
+    "title_zh": "物品交易商店",
+    "title_en": "item_shop_with_commands",
+    "layer": "technique",
+    "source_url": "https://minecraftcommands.github.io/wiki/questions/shop",
+    "source_type": "mcc_wiki",
+    "wiki_covers_this": false,
+    "version_min": "1.13",
+    "tags": [
+      "shop",
+      "item-trading",
+      "scoreboard",
+      "clear-command",
+      "tag-system"
+    ],
+    "verified_in_game": false
+  },
+  "purge_reason": "duplicate_replaced_by_newer_extraction",
+  "purged_at": "2026-06-05T17:03:16.700910"
+}

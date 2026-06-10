@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0243",
+  "original": "t0243_Player_Spreading_with_Team_Grouping.md",
+  "source": "techniques",
+  "content": "---\nid: t0243\ntitle: 玩家分散与队伍分组\ntitle_en: Player Spreading with Team Grouping\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-commands/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"spreadplayers\", \"team\", \"grouping\", \"multiplayer\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n通过设置 respectTeams 为 true，可以将同一队伍的玩家分散到同一位置，而不同队伍的玩家分散到不同位置，实现队伍分组分散。\n\n## 代码示例\n\n```mcfunction\nspreadplayers 0 0 5 20 true @a\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\n当 respectTeams 为 true 时，命令会按队伍分组，同一队伍的玩家会被分散到同一个随机位置，不同队伍的玩家则分散到不同位置。这利用了队伍机制来改变分散行为。\n\n## 注意事项\n\n- 常见误解：开发者可能认为 spreadplayers 只能将每个目标分散到不同位置，无法实现队伍内聚集。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.783029"
+}

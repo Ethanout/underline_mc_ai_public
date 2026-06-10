@@ -1,0 +1,11 @@
+{
+  "api_base": "https://arctic-shift.photon-reddit.com/api",
+  "subreddit": "MinecraftCommands",
+  "proxy": "http://127.0.0.1:7897",
+  "request_delay_seconds": 0.25,
+  "max_scan_posts": 1000,
+  "java_only": true,
+  "help_only": true,
+  "min_comments": 1,
+  "min_comment_score": 1
+}

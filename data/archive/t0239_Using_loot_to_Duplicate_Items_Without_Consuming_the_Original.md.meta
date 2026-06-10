@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0239",
+  "original": "t0239_Using_loot_to_Duplicate_Items_Without_Consuming_the_Original.md",
+  "source": "techniques",
+  "content": "---\nid: t0239\ntitle: 使用/loot命令复制物品而不消耗原方块\ntitle_en: Using /loot to Duplicate Items Without Consuming the Original Block\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-commands/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"loot\", \"duplication\", \"block manipulation\", \"resource generation\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n通过/loot mine命令可以复制方块战利品，而原方块不会被破坏，这不同于/setblock或/fill的破坏行为。\n\n## 代码示例\n\n```mcfunction\n# 复制钻石矿石的掉落物（如钻石）而不破坏矿石\nloot give @p mine block ~ ~ ~ diamond_ore\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\n/loot mine <pos> 会模拟挖掘指定位置的方块，生成其战利品表掉落物，但方块本身不会被移除或改变。这允许在不破坏方块的情况下获取其掉落物，例如用于复制资源或创建自定义掉落机制。\n\n## 注意事项\n\n- 常见误解：开发者可能认为只有通过破坏方块才能获得其战利品，或者认为/loot mine会像玩家挖掘一样消耗方块。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.780661"
+}

@@ -1,0 +1,10 @@
+{
+  "type": "technique",
+  "id": "t0250",
+  "original": "t0250_Precise_Warning_and_Buffer_Control.md",
+  "source": "techniques",
+  "content": "---\nid: t0250\ntitle: 边界警告与缓冲区的精确控制\ntitle_en: Precise Warning and Buffer Control\nlayer: technique\nsource_url: \"https://github.com/Alumopper/mcf-skill/blob/main/mcf-commands/SKILL.md\"\nsource_type: mcf_skill\nwiki_covers_this: false\ntags: [\"worldborder\", \"warning\", \"buffer\", \"separation\"]\nverified_in_game: false\n---\n\n## 核心洞见\n\n`worldborder warning distance` 和 `worldborder warning time` 可以独立于伤害设置，实现视觉警告与伤害触发的分离。\n\n## 代码示例\n\n```mcfunction\n# 设置警告距离为20格，但伤害缓冲为5格，玩家在边界外5-20格内只看到警告不受伤害\nworldborder warning distance 20\nworldborder damage buffer 5\n```\n\n## 用法\n\n（待补充）\n\n## 使用场景\n\n（待补充）\n\n## 机制原理\n\n`warning distance` 控制红色警告线的显示距离（默认5格），`warning time` 控制收缩时的警告时间（默认15秒），而 `damage buffer` 控制实际伤害开始的距离（默认5格），三者可独立设置，实现“提前警告但延迟伤害”或“无警告直接伤害”等效果。\n\n## 注意事项\n\n- 常见误解：开发者认为警告距离和时间必须与伤害参数一致，无法单独调整。\n",
+  "index_entry": null,
+  "purge_reason": "orphan_not_in_index",
+  "purged_at": "2026-06-05T17:03:16.785411"
+}
