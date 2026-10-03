@@ -47,23 +47,27 @@ runtime/private/qq_events.jsonl
   -> ChromaDB               每个群一个 collection，按 event_key 去重，重复跑不会写重
 ```
 
-运行（在本目录下）：
+运行（在仓库根目录下）：
 
 ```bash
-python -m qqbot.style_memory
+PYTHONPATH=apps/qqbot/src python -m qqbot.style_memory
 ```
 
-默认读 `runtime/private/qq_events.jsonl`，写 `runtime/private/qq_style/`，结束后打印每个群存了多少条。
+默认读 `runtime/private/qq_events.jsonl`，写 `runtime/private/qq_style/`，结束后打印每个群存了多少条。这两个路径是相对**当前工作目录**解析的，不是相对这个文件，所以在 `apps/qqbot/` 里跑会读到不存在的位置、安静地写入 0 条。要么在根目录跑，要么显式给 `--journal`。
 
-`python -m qqbot.style_memory` 需要 `src/` 在导入路径上。装过 `pip install -e apps/qqbot` 的话直接跑就行；没装就写 `PYTHONPATH=src python -m qqbot.style_memory`，或者用安装出的命令 `qqbot-style-memory`。
+`python -m qqbot.style_memory` 需要 `src/` 在导入路径上。装过 `pip install -e apps/qqbot` 的话直接跑就行，也可以用安装出的命令 `qqbot-style-memory`。
+
+**收哪些数据**
+
+- `--since 2026-10-04` — 只收这个时间之后的记录。
+- `--bot-since 2026-10-04` — 只对毯毯自己的话生效。修好引用记录之前的旧回复没有 `reply` 段，看不出在回什么，混进去会教坏检索。想先只用干净的语料，就给这个参数一个修复之后的时间。
+- `--stats` 只看条数，不动数据。`--group` 指定群号（库里有多个群时必须给），`--k` 是检索条数，`--bot-only` / `--human-only` 分别在毯毯自己的话和群友的话里检索。
 
 检索看看效果（这一步才是你判断 embedding 好不好的依据）：
 
 ```bash
 python -m qqbot.style_memory --query "这段 execute 是干嘛的" --bot-only
 ```
-
-`--stats` 只看条数，不动数据。`--group` 指定群号（库里有多个群时必须给），`--k` 是检索条数，`--bot-only` / `--human-only` 分别在毯毯自己的话和群友的话里检索。
 
 后端靠环境变量切换，见 `.env.example`：
 

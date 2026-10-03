@@ -10,6 +10,7 @@ from qqbot.style_memory import (  # noqa: E402
     StyleMemory,
     collect_utterances,
     collection_name,
+    parse_since,
     message_text,
     read_journal,
     reply_target_id,
@@ -105,6 +106,29 @@ class CollectTests(unittest.TestCase):
     def test_collect_truncates_long_lines(self):
         utterances = collect_utterances([record(1, "喵" * 900)], max_chars=100)
         self.assertEqual(len(utterances[0].text), 100)
+
+    def test_collect_drops_old_records_with_since(self):
+        records = [record(1, "旧的", timestamp=100), record(2, "新的", timestamp=900)]
+        self.assertEqual([item.text for item in collect_utterances(records, since=500)], ["新的"])
+        self.assertEqual(len(collect_utterances(records)), 2)
+
+    def test_bot_since_only_filters_the_bot(self):
+        records = [
+            record(1, "群友旧话", user_id="1", timestamp=100),
+            record(2, "毯毯旧话", user_id="self", name="毯毯", role="bot", timestamp=100),
+            record(3, "毯毯新话", user_id="self", name="毯毯", role="bot", timestamp=900),
+        ]
+        items = collect_utterances(records, bot_since=500)
+        self.assertEqual(
+            [(item.text, item.is_bot) for item in items],
+            [("群友旧话", False), ("毯毯新话", True)],
+        )
+
+    def test_parse_since_accepts_date_and_minute(self):
+        self.assertEqual(parse_since("2026-10-04 00:00"), parse_since("2026-10-04"))
+        self.assertLess(parse_since("2026-10-04"), parse_since("2026-10-04 12:30"))
+        with self.assertRaises(ValueError):
+            parse_since("昨天")
 
 
 class JournalTests(unittest.TestCase):

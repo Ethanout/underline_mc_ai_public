@@ -17,6 +17,7 @@ command actually runs.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import sys
@@ -45,6 +46,20 @@ def message_text(event: dict) -> str:
             continue
         parts.append(str(segment.get("data", {}).get("text", "")))
     return "".join(parts).strip()
+
+
+def parse_since(value: str) -> float:
+    """Parse ``2026-10-04`` or ``2026-10-04 12:30`` into a local timestamp."""
+    text = value.strip().replace("T", " ")
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            parsed = datetime.datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+        if fmt == "%Y-%m-%d":
+            parsed = parsed.replace(hour=0, minute=0, second=0)
+        return parsed.timestamp()
+    raise ValueError(f"看不懂的时间：{value}（要 2026-10-04 或 2026-10-04 12:30 这种）")
 
 
 def reply_target_id(event: dict) -> str:
@@ -111,8 +126,19 @@ def read_journal(path: str | Path) -> list[dict]:
     return records
 
 
-def collect_utterances(records: Iterable[dict], max_chars: int = MAX_TEXT_CHARS) -> list[Utterance]:
-    """Turn journal records into storable lines, resolving quoted replies."""
+def collect_utterances(
+    records: Iterable[dict],
+    max_chars: int = MAX_TEXT_CHARS,
+    since: float | None = None,
+    bot_since: float | None = None,
+) -> list[Utterance]:
+    """Turn journal records into storable lines, resolving quoted replies.
+
+    ``since`` drops anything older than that timestamp.  ``bot_since`` drops
+    only the bot's own old lines, which is what the reply-trigger fix needs:
+    lines recorded before it carry no ``reply`` segment, so they read as bare
+    statements with nothing to answer and teach the store the wrong shape.
+    """
     records = list(records)
     bot_ids = {"self"}
     for record in records:
@@ -144,6 +170,10 @@ def collect_utterances(records: Iterable[dict], max_chars: int = MAX_TEXT_CHARS)
         is_bot = user_id in bot_ids or str(sender.get("role", "")) == "bot"
         reply_id = reply_target_id(event)
         timestamp = event.get("time") or record.get("received_at") or 0.0
+        timestamp = float(timestamp)
+        cutoff = bot_since if is_bot else since
+        if cutoff is not None and timestamp < cutoff:
+            continue
         utterances.append(
             Utterance(
                 event_key=event_key,
@@ -151,7 +181,7 @@ def collect_utterances(records: Iterable[dict], max_chars: int = MAX_TEXT_CHARS)
                 user_id=user_id,
                 speaker="毯毯" if is_bot else _speaker_name(sender, user_id),
                 text=text[:max_chars],
-                ts=float(timestamp),
+                ts=timestamp,
                 is_bot=is_bot,
                 reply_to_id=reply_id,
                 reply_to_text=texts_by_id.get(reply_id, ""),
@@ -295,6 +325,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--device", default=None, help="本地后端的设备，默认 cpu")
     parser.add_argument("--prefix", default=DEFAULT_PREFIX)
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
+    parser.add_argument("--since", default=None, help="只收这个时间之后的记录，如 2026-10-04")
+    parser.add_argument(
+        "--bot-since",
+        default=None,
+        help="只对毯毯自己的话生效的时间下限；修好引用之前的旧回复没有 reply 段，默认不收",
+    )
     parser.add_argument("--stats", action="store_true", help="只显示库里的条数")
     parser.add_argument("--query", default=None, help="检索一句话，看看库里最相近的记录")
     parser.add_argument("--group", default=None, help="检索用的群号，省略时用库里唯一的群")
@@ -304,20 +340,31 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     _force_utf8_stdout()
+    try:
+        since = parse_since(args.since) if args.since else None
+        bot_since = parse_since(args.bot_since) if args.bot_since else None
+    except ValueError as exc:
+        print(exc)
+        return 2
     embedder = build_embedder(backend=args.backend, model=args.model, device=args.device)
     memory = StyleMemory(args.db, embedder, prefix=args.prefix)
 
     if not args.stats and not args.query:
         records = read_journal(args.journal)
-        utterances = collect_utterances(records)
+        utterances = collect_utterances(records, since=since, bot_since=bot_since)
         if not utterances:
             print(f"没有可写入的消息，检查 {args.journal}")
             return 1
         print(f"后端：{embedder.name}")
         stored = memory.add(utterances, batch_size=args.batch_size)
-        bot_lines = sum(1 for item in utterances if item.is_bot)
+        bot_lines = [item for item in utterances if item.is_bot]
         groups = sorted({item.group_id for item in utterances})
-        print(f"写入 {stored} 条，其中毯毯自己的 {bot_lines} 条，涉及群 {len(groups)} 个")
+        print(f"写入 {stored} 条，其中毯毯自己的 {len(bot_lines)} 条，涉及群 {len(groups)} 个")
+        tethered = sum(1 for item in bot_lines if item.reply_to_id)
+        untethered = len(bot_lines) - tethered
+        if untethered:
+            print(f"  毯毯的话里 {untethered} 条没有引用段（看不出在回什么），{tethered} 条带引用")
+            print("  这些多半是修好引用记录之前留下的，用 --bot-since 2026-10-04 之类的时间下限可以剔除")
 
     if args.stats or not args.query:
         for group_id, count in sorted(memory.stats().items()):
