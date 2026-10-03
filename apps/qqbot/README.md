@@ -2,6 +2,23 @@
 
 当前子项目只负责通过 OneBot/NapCat/Lagrange 兼容 HTTP API 抓取群精华消息和媒体，并把结果保存为知识库的外部来源快照。
 
+## 配置
+
+复制根目录的 `.env.example` 成 `.env` 填好就够了，不用每次开 shell 设 `$env:`。`qqbot` 包在导入时会自动读它：从当前目录往上找最近的一处，也可以用 `QQBOT_ENV_FILE` 指定别的路径。进程里已经有的真环境变量优先，所以 `$env:QQBOT_EMBED_MODEL=... python -m qqbot.web` 这种临时覆盖照样管用。
+
+密钥不必搬进 `.env`。`<NAME>_FILE` 指向一个文件，`<NAME>` 就会取那个文件的内容：
+
+```bash
+# .env 里这样写，key 留在原来那个文件里
+QQBOT_EMBED_API_KEY_FILE=D:\重要的资料\身份认证和各种key\silicon.txt
+```
+
+填完检查一下读到了什么（只报长度，不打印密钥，带 key 的话还会真发一次请求验证）：
+
+```bash
+python -m qqbot
+```
+
 ## WebUI 后端
 
 设置 `ONEBOT_ACCESS_TOKEN` 后，在本目录运行 `python -m qqbot.web`，然后打开 `http://127.0.0.1:8787`。也可以在 editable 安装后运行 `qqbot-web`。WebUI 只接受 endpoint、已授权群号和输出目录；不会接收或展示 Token。任务状态通过 `/api/jobs/{id}` 查询，`/api/health` 只返回服务状态和是否配置 Token。

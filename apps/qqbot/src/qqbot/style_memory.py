@@ -346,19 +346,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ValueError as exc:
         print(exc)
         return 2
+    # Read and filter the journal *before* building an embedder.  Building one
+    # is the expensive half -- a model download on the local backend, a live
+    # HTTP client on the api one -- and an absent or fully-filtered journal is
+    # the common case when someone is still setting the thing up.  Reporting
+    # "没有可写入的消息" should not cost a download first.
+    pending: list[Utterance] = []
+    if not args.stats and not args.query:
+        records = read_journal(args.journal)
+        pending = collect_utterances(records, since=since, bot_since=bot_since)
+        if not pending:
+            print(f"没有可写入的消息，检查 {args.journal}")
+            return 1
+
     embedder = build_embedder(backend=args.backend, model=args.model, device=args.device)
     memory = StyleMemory(args.db, embedder, prefix=args.prefix)
 
-    if not args.stats and not args.query:
-        records = read_journal(args.journal)
-        utterances = collect_utterances(records, since=since, bot_since=bot_since)
-        if not utterances:
-            print(f"没有可写入的消息，检查 {args.journal}")
-            return 1
+    if pending:
         print(f"后端：{embedder.name}")
-        stored = memory.add(utterances, batch_size=args.batch_size)
-        bot_lines = [item for item in utterances if item.is_bot]
-        groups = sorted({item.group_id for item in utterances})
+        stored = memory.add(pending, batch_size=args.batch_size)
+        bot_lines = [item for item in pending if item.is_bot]
+        groups = sorted({item.group_id for item in pending})
         print(f"写入 {stored} 条，其中毯毯自己的 {len(bot_lines)} 条，涉及群 {len(groups)} 个")
         tethered = sum(1 for item in bot_lines if item.reply_to_id)
         untethered = len(bot_lines) - tethered
