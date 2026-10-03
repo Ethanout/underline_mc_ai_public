@@ -8,8 +8,13 @@ venv/
 
 # Local debugging artifacts
 .temp/
+.pytest_cache/
+**/build/
 *.hprof
 *.log
+
+# Local archives can contain private exports and upstream dependencies.
+/.archive/
 
 # IDE
 .vscode/
@@ -19,22 +24,29 @@ venv/
 # Environment & secrets
 .env
 config/api/*.txt
+apps/qqbot/config/config.local.json
+knowledge/archive/sources/qq_group_digest_*/
 
-# Knowledge base data (large binary files)
-data/knowledge/rag_chroma_db/
+# Regenerable runtime data
+runtime/rag/
+runtime/temp/
+runtime/validation/
+runtime/private/
 
 # Minecraft mod build artifacts
-projects/minecraft-mod-mcp/packages/mods/*/fabric/run/
-projects/minecraft-mod-mcp/packages/mods/*/forge/run/
-projects/minecraft-mod-mcp/packages/mods/*/neoforge/run/
-projects/minecraft-mod-mcp/**/build/
-projects/minecraft-mod-mcp/**/.gradle/
-projects/minecraft-mod-mcp/**/bin/
-projects/minecraft-mod-mcp/**/crash-reports/
-projects/minecraft-mod-mcp/**/node_modules/
+external/minecraft-mod-mcp/packages/mods/*/fabric/run/
+external/minecraft-mod-mcp/packages/mods/*/forge/run/
+external/minecraft-mod-mcp/packages/mods/*/neoforge/run/
+external/minecraft-mod-mcp/**/build/
+external/minecraft-mod-mcp/**/.gradle/
+external/minecraft-mod-mcp/**/bin/
+external/minecraft-mod-mcp/**/crash-reports/
+external/minecraft-mod-mcp/**/node_modules/
+external/llm_wiki/node_modules/
+external/llm_wiki/dist/
 
 # Mineflayer
-projects/mineflayer-bot/node_modules/
+legacy/mineflayer-bot/node_modules/
 
 # Old directories (migrated)
 /scripts/

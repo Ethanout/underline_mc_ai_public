@@ -1,0 +1,21 @@
+[project]
+name = "underline-mc-qqbot"
+version = "0.1.0"
+description = "QQ 群精华消息采集与知识库接入"
+requires-python = ">=3.10"
+dependencies = ["fastapi>=0.116.0,<1.0", "uvicorn[standard]>=0.23.0", "pydantic>=2.0.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+qqbot = ["static/*.html"]
+
+[project.scripts]
+qq-essence-export = "qqbot.essence_exporter:main"
+qqbot-web = "qqbot.web:main"
+qqbot-style-memory = "qqbot.style_memory:main"

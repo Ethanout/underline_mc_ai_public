@@ -1,31 +1,21 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "agent": {
-    "validator": {
-      "description": "从知识库读取技术条目 → 用 beet 生成测试数据包 → 部署到 Minecraft → 验证结果",
-      "skills": ["beet-datapack"]
-    },
-    "maintainer": {
-      "description": "数据库维护：检查 inbox 新内容、运行爬取管道、清理过期条目、审核质量",
-      "skills": []
-    }
-  },
   "mcp": {
     "minecraft-bot": {
       "type": "local",
       "command": ["npx", "-y", "minecraft-mcp-server", "--host", "localhost", "--port", "25565", "--username", "UnderlineBot"],
-      "enabled": true
+      "enabled": false
     },
     "minecraft-mod": {
       "type": "local",
-      "command": ["node", "C:\\重要的资料\\项目\\underline_mc_ai\\projects\\minecraft-mod-mcp\\packages\\minecraft-mod-mcp\\dist\\cli.js"],
+      "command": ["npx", "-y", "minecraft-mod-mcp"],
       "enabled": true
     },
     "zai-mcp-server": {
       "type": "local",
       "command": ["npx", "-y", "@z_ai/mcp-server"],
       "env": {
-        "Z_AI_API_KEY": "sk-REDACTED",
+        "Z_AI_API_KEY": "{env:Z_AI_API_KEY}",
         "Z_AI_BASE_URL": "https://api.siliconflow.cn/v1/",
         "Z_AI_VISION_MODEL": "zai-org/GLM-4.5V"
       },

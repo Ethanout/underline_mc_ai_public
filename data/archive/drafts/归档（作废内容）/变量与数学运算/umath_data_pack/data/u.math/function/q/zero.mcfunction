@@ -1,4 +1,0 @@
-scoreboard players set q.x u.variable 0
-scoreboard players set q.y u.variable 0
-scoreboard players set q.z u.variable 0
-scoreboard players set q.w u.variable 0

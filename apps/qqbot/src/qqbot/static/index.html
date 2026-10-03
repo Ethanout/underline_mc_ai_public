@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QQ Bot 导出器</title>
+<style>body{font:16px system-ui;max-width:720px;margin:40px auto;padding:0 18px}label{display:block;margin:14px 0 4px}input{width:100%;box-sizing:border-box;padding:8px}button{margin-top:18px;padding:9px 14px}pre{white-space:pre-wrap;background:#f4f4f4;padding:12px}</style>
+<h1>QQ Bot 群精华导出</h1>
+<p>Token 仅从服务器环境变量 <code>ONEBOT_ACCESS_TOKEN</code> 读取。</p>
+<form id="form">
+<label>OneBot endpoint</label><input name="endpoint" value="http://127.0.0.1:3000">
+<label>授权群号</label><input name="group_id" required>
+<label>输出目录</label><input name="output" value="runtime/private/qq_group_digest">
+<label>Action</label><input name="action" value="get_essence_msg_list">
+<label><input type="checkbox" name="diagnose"> 仅诊断，不写入消息或媒体</label>
+<label><input type="checkbox" name="refresh"> 重新读取已存在的消息</label>
+<button>开始任务</button>
+</form><pre id="status">就绪</pre>
+<script>
+const form=document.querySelector('#form'), status=document.querySelector('#status');
+form.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(form));d.diagnose=!!form.diagnose.checked;d.refresh=!!form.refresh.checked;let r=await fetch('/api/jobs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(d)});let j=await r.json();status.textContent=JSON.stringify(j,null,2);if(j.id){let timer=setInterval(async()=>{let x=await (await fetch('/api/jobs/'+j.id)).json();status.textContent=JSON.stringify(x,null,2);if(['succeeded','failed'].includes(x.status))clearInterval(timer)},1000)}};
+</script>

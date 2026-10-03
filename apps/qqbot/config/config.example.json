@@ -1,0 +1,9 @@
+{
+  "endpoint": "http://127.0.0.1:3000",
+  "token_env": "ONEBOT_ACCESS_TOKEN",
+  "group_ids": [],
+  "action": "get_essence_msg_list",
+  "output": "runtime/private/qq_group_digest",
+  "page_size": 100,
+  "delay": 0.3
+}

@@ -1,8 +1,0 @@
-{
-  "name": "minecraft-command-bot",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    "mineflayer": "^4.20.1"
-  }
-}

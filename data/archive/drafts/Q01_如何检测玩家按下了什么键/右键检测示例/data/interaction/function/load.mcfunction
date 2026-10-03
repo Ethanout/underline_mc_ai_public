@@ -1,1 +1,0 @@
-scoreboard objectives add sample_interaction dummy
