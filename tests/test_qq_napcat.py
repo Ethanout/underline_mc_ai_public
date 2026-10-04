@@ -85,6 +85,61 @@ class SyncTests(unittest.TestCase):
             self.assertEqual(saved["musicSignUrl"], "")
 
 
+class MaiBotWebSocketTests(unittest.TestCase):
+    def test_ws_server_is_added_on_loopback_and_kept_alongside_others(self):
+        with TemporaryDirectory() as directory:
+            config = napcat_config()
+            other = {"name": "someone-else", "enable": True, "host": "0.0.0.0", "port": 9}
+            config["network"]["websocketServers"] = [other]
+            path = write_napcat(directory, config)
+            self.assertTrue(napcat.sync_ws_server(path, 3001, "ws"))
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            servers = saved["network"]["websocketServers"]
+            self.assertEqual(servers[0], other)
+            self.assertEqual(servers[1]["name"], napcat.WS_SERVER_NAME)
+            self.assertEqual(servers[1]["host"], "127.0.0.1")
+            self.assertEqual(servers[1]["port"], 3001)
+            self.assertEqual(servers[1]["token"], "ws")
+            self.assertEqual(servers[1]["messagePostFormat"], "array")
+            self.assertTrue(path.with_suffix(".json.bak").is_file())
+            # The push client to our service is untouched.
+            self.assertEqual(saved["network"]["httpServers"], napcat_config()["network"]["httpServers"])
+            self.assertFalse(napcat.sync_ws_server(path, 3001, "ws"))
+            self.assertTrue(napcat.sync_ws_server(path, 3002, "ws"))
+
+    def test_start_opens_ws_only_when_maibot_is_configured(self):
+        from qqbot import start
+
+        with TemporaryDirectory() as directory:
+            path = write_napcat(directory, napcat_config())
+            token_file = Path(directory) / "ws.txt"
+            env = {"MAIBOT_NAPCAT_WS_PORT": "3005"}
+            with mock.patch.dict(os.environ, env), \
+                    mock.patch.object(napcat, "DEFAULT_WS_TOKEN_FILE", str(token_file)), \
+                    mock.patch("builtins.print") as printed:
+                self.assertTrue(start.sync_maibot_ws(path))
+            server = json.loads(path.read_text(encoding="utf-8"))["network"]["websocketServers"][0]
+            self.assertEqual(server["port"], 3005)
+            token = token_file.read_text(encoding="utf-8").strip()
+            self.assertEqual(server["token"], token)
+            self.assertNotIn(token, str(printed.call_args_list))
+            with mock.patch.dict(os.environ, {"MAIBOT_NAPCAT_WS_PORT": "x"}):
+                with self.assertRaises(ValueError):
+                    start.maibot_ws_port()
+
+
+class PluginTokenTests(unittest.TestCase):
+    def test_plugin_token_only_exists_once_maibot_is_configured(self):
+        with TemporaryDirectory() as directory:
+            token_file = Path(directory) / "plugin.txt"
+            with mock.patch.dict(os.environ, {"QQBOT_PLUGIN_TOKEN_FILE": str(token_file)}, clear=True):
+                self.assertEqual(settings._apply_plugin_token(), {})
+                self.assertFalse(token_file.exists())
+                os.environ["MAIBOT_DIR"] = directory
+                self.assertEqual(settings._apply_plugin_token(), {"QQBOT_PLUGIN_TOKEN": str(token_file)})
+                self.assertEqual(os.environ["QQBOT_PLUGIN_TOKEN"], token_file.read_text(encoding="utf-8").strip())
+
+
 class EventTokenTests(unittest.TestCase):
     def test_token_is_generated_once(self):
         with TemporaryDirectory() as directory:

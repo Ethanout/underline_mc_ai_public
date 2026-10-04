@@ -18,9 +18,10 @@ from qqbot.agent import Agent, prompt_messages
 from qqbot.deepseek_files import DeepSeekImageFiles, clamp_ttl, image_part
 from qqbot.events import EventJournal
 from qqbot.images import ImageCache, image_segments
-from qqbot.reply import probe_capabilities, thinking_fields, token_budget
+from qqbot.deepseek import probe_capabilities, thinking_fields, token_budget
 from qqbot.store import Store
-from qqbot.style_memory import StyleMemory, ingest_journal
+from qqbot.admin_tools import install_admin_tools
+from qqbot.collection import install_collection_tools
 from qqbot.tools import ToolRegistry
 
 PNG = base64.b64decode(
@@ -55,9 +56,9 @@ class FoundationTests(unittest.TestCase):
             self.store.append(source)
             task = self.store.create_task("g", "unlisted", str(index))
             self.assertNotIn(
-                "remember", {s["function"]["name"] for s in self.registry.tools_for(task)}
+                "collect_tricks", {s["function"]["name"] for s in self.registry.tools_for(task)}
             )
-            self.assertIn("error", self.registry.execute(task, "remember", {"content": "摸摸→ww"}))
+            self.assertIn("error", self.registry.execute(task, "collect_tricks", {"source": "history"}))
 
     def setUp(self):
         self.store = Store(":memory:", clock=lambda: 10000)
@@ -68,6 +69,8 @@ class FoundationTests(unittest.TestCase):
         self.member = self.store.create_task("g", "member", "6", "群友")
         self.admin = self.store.create_task("g", "admin", "5", "伊桑")
         self.registry = ToolRegistry(self.store)
+        install_admin_tools(self.registry, runner=lambda *a, **k: self.fail("成员不能执行命令"))
+        install_collection_tools(self.registry, classifier=lambda message: None)
 
     def tearDown(self):
         self.env.stop()
@@ -76,9 +79,7 @@ class FoundationTests(unittest.TestCase):
     def test_permissions_are_task_bound_and_audited(self):
         self.registry.tools_for(self.admin)
         forbidden = {
-            "remember",
-            "forget",
-            "reset_runtime",
+            "collect_tricks",
             "web_read",
             "web_search",
             "read_file",
@@ -99,36 +100,26 @@ class FoundationTests(unittest.TestCase):
         self.assertIn(
             "error", self.registry.execute(self.member, "read_quoted", {"message_id": "other:1"})
         )
-        self.assertIn(
-            "error",
-            self.registry.execute(
-                self.member, "search_memory", {"queries": ["x"], "category": "unrelated"}
-            ),
-        )
+        admin_names = {x["function"]["name"] for x in self.registry.tools_for(self.admin)}
+        self.assertTrue(forbidden <= admin_names)
 
-    def test_notes_author_revocation_recycle_and_visibility(self):
-        result = self.registry.execute(
-            self.admin, "remember", {"content": "摸摸", "author": "fake"}
+    def test_knowledge_search_returns_tricks_with_sources_then_chat(self):
+        self.store.write(
+            "INSERT INTO memory_state VALUES(?,?,?,?,?,?,?,?,?)",
+            ("trick:a", "g", "related", "trick", "群友", "# 转视角 execute rotated", '["g:3"]', "{}", 1),
         )
-        mid = result["id"]
-        row = self.store.rows("SELECT * FROM memory_state WHERE id=?", (mid,))[0]
-        self.assertEqual(row["author"], "admin")
-        self.assertEqual(
-            self.registry.execute(self.member, "search_memory", {"queries": ["摸摸"]})["results"],
-            [],
+        self.store.write(
+            "INSERT INTO memory_state VALUES(?,?,?,?,?,?,?,?,?)",
+            ("trick:b", "other", "related", "trick", "群友", "# 转视角 execute rotated", "[]", "{}", 1),
         )
-        os.environ["QQBOT_ADMIN_IDS"] = "replacement"
-        task = self.store.create_task("g", "replacement", "7")
-        self.assertEqual(
-            self.registry.execute(task, "search_memory", {"queries": ["摸摸"]})["results"][0][
-                "label"
-            ],
-            "note",
-        )
-        self.assertIn("error", self.registry.execute(task, "forget", {"memory_id": "g:1"}))
-        self.registry.execute(task, "forget", {"memory_id": mid})
-        self.assertEqual(self.store.rows("SELECT * FROM memory_state"), [])
-        self.assertEqual(self.store.restore(mid)["category"], "unrelated")
+        results = self.registry.execute(self.member, "search_knowledge", {"queries": ["转视角", "消息2"]})[
+            "results"
+        ]
+        self.assertEqual(results[0]["id"], "trick:a")
+        self.assertEqual(results[0]["sources"], ["g:3"])
+        self.assertIn("未验证", results[0]["label"])
+        self.assertEqual([r["label"] for r in results[1:]], ["聊天"])
+        self.assertIn("error", self.registry.execute(self.member, "search_knowledge", {"queries": []}))
 
     def test_transcript_and_history(self):
         self.store.append(event(7, image=True))
@@ -143,19 +134,6 @@ class FoundationTests(unittest.TestCase):
         history = self.registry.execute(task, "read_history", {"count": 2})
         self.assertEqual([r["message_id"] for r in history["messages"]], ["2", "3"])
         self.assertTrue(self.registry.execute(task, "read_history", {"count": 10})["missing"])
-
-    def test_runtime_bounds_cooldown_and_reset(self):
-        args = {"name": "reply_max_tokens", "value": 99999, "reason": "测试"}
-        self.assertEqual(self.registry.execute(self.member, "adjust_runtime", args)["value"], 4096)
-        self.assertIn("error", self.registry.execute(self.member, "adjust_runtime", args))
-        self.assertIn(
-            "error",
-            self.registry.execute(
-                self.member, "adjust_runtime", {**args, "name": "QQBOT_ADMIN_IDS"}
-            ),
-        )
-        self.assertIn("error", self.registry.execute(self.member, "reset_runtime"))
-        self.assertEqual(self.registry.execute(self.admin, "reset_runtime")["status"], "reset")
 
     def test_loop_cap_replay_and_reasoning_privacy(self):
         requests = []
@@ -215,7 +193,7 @@ class FoundationTests(unittest.TestCase):
         self.assertNotIn("reasoning_effort", requests[0])
         self.assertEqual(requests[0]["thinking"], {"type": "disabled"})
         # Without thinking the answer budget is used as-is.
-        self.assertEqual(requests[0]["max_tokens"], 220)
+        self.assertEqual(requests[0]["max_tokens"], 800)
 
     def test_thinking_budget_is_added_on_top_of_answer_length(self):
         with patch.dict(os.environ, {"QQBOT_THINKING_BUDGET": "3000"}):
@@ -233,13 +211,14 @@ class FoundationTests(unittest.TestCase):
             Agent(self.store, self.registry, post, effort="low").run(
                 self.store.create_task("g", "member", "78"), prompt_messages("转录")
             )
-        self.assertEqual(requests[0]["max_tokens"], 4220)
+        self.assertEqual(requests[0]["max_tokens"], 4800)
 
     def test_prefix_and_capability_failures(self):
-        a = prompt_messages("一", "风格", "精力0.2", "昨天")
-        b = prompt_messages("二", "风格", "精力0.8", "今天")
+        a = prompt_messages("同一段聊天", "找技巧", "群友", "昨天")
+        b = prompt_messages("同一段聊天", "查精华", "伊桑", "今天")
         self.assertEqual(a[:2], b[:2])
-        self.assertIn("精力0.2", a[-1]["content"])
+        self.assertIn("找技巧", a[-1]["content"])
+        self.assertIn("昨天", a[-1]["content"])
         requests = []
 
         def complete(payload):
@@ -260,7 +239,12 @@ class FoundationTests(unittest.TestCase):
                 raise ValueError("图片被拒")
             return {}
 
-        caps = probe_capabilities(post, lambda raw, ttl: "file-api-probe")
+        uploaded = []
+        caps = probe_capabilities(post, lambda raw, ttl: uploaded.append(raw) or "file-api-probe")
+        # DeepSeek rejects a 1x1 grayscale PNG; the probe must send a real RGB image.
+        self.assertEqual(uploaded[0][:8], bytes.fromhex("89504e470d0a1a0a"))
+        self.assertEqual(uploaded[0][16:24], (8).to_bytes(4, "big") * 2)
+        self.assertEqual(uploaded[0][25], 2)
         self.assertFalse(caps["tools"])
         self.assertFalse(caps["images"])
         self.assertIn("引用图片", caps["errors"]["images"])
@@ -311,7 +295,9 @@ class FoundationTests(unittest.TestCase):
             def resumed(payload):
                 return {"choices": [{"message": {"content": "恢复成功"}}]}
 
-            with patch.dict(sys.modules, {"langgraph": None}):
+            # Block submodules too: an earlier test may have imported the real package.
+            blocked = {name: None for name in sys.modules if name.split(".")[0] == "langgraph"}
+            with patch.dict(sys.modules, {**blocked, "langgraph": None}):
                 agent = Agent(store, registry, resumed, use_langgraph=True)
                 self.assertEqual(agent.run(task, []), "恢复成功")
             self.assertEqual(calls, ["tool"])
@@ -327,42 +313,6 @@ class FoundationTests(unittest.TestCase):
         self.assertTrue(
             any(isinstance(item, dict) and "truncated_count" in item for item in result["missing"])
         )
-
-    def test_incremental_text_and_images_do_not_reembed(self):
-        class Collection:
-            def __init__(self):
-                self.ids = set()
-
-            def get(self, ids):
-                return {"ids": list(self.ids.intersection(ids))}
-
-            def upsert(self, ids, **args):
-                self.ids.update(ids)
-
-        class Embedder:
-            name = "fake"
-            calls = 0
-
-            def encode(self, texts):
-                self.calls += len(texts)
-                return [[1.0] for text in texts]
-
-            def encode_images(self, images):
-                return self.encode(images)
-
-        with TemporaryDirectory() as directory:
-            memory = StyleMemory(directory, Embedder())
-            collection = Collection()
-            memory.collection = lambda group: collection
-            source = event(1, image=True)
-            cache = ImageCache(directory)
-            ref = image_segments(source)[0]
-            (Path(directory) / f"{ref.cache_key}.png").write_bytes(PNG)
-            records = [{"event_key": "1", "event": source}]
-            self.assertEqual(ingest_journal(memory, records, cache)["images"], 1)
-            memory.embedder.calls = 0
-            self.assertEqual(ingest_journal(memory, records, cache)["text"], 0)
-            self.assertEqual(memory.embedder.calls, 0)
 
 
 class ImageFilesTests(unittest.TestCase):

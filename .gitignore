@@ -27,6 +27,8 @@ venv/
 # 前导 / 只锚定根目录，不会误伤 apps/qqbot/config/config.example.json 这种模板。
 /config/
 apps/qqbot/config/config.local.json
+# MaiBot 按 config_model 在插件目录里生成的本机配置；插件以目录联接安装时会落到这里。
+apps/maibot_plugin/*/config.toml
 knowledge/archive/sources/qq_group_digest_*/
 
 # Regenerable runtime data

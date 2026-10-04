@@ -1,11 +1,11 @@
 # Underline Tricks Collector 工作区
 
-当前保留 QQ 精华采集器，作为 Collector 的开发起点。旧 Python RAG、知识控制台、爬取管线和验证器已归档。知识资料迁往相邻目录 `../underline_wiki/`，后续检索以该 wiki 为来源。新的 wiki 接入尚未实现。
+当前保留 QQ 精华采集器和毯毯的工具服务（`/毯` 任务、群技巧库），群聊人格交给 MaiBot。旧 Python RAG、知识控制台、爬取管线和验证器已归档。知识资料迁往相邻目录 `../underline_wiki/`，后续检索以该 wiki 为来源。新的 wiki 接入尚未实现。
 
 ## 快速开始
 
 ```powershell
-python -m pip install -e "apps/qqbot[style]"
+python -m pip install -e "apps/qqbot"
 copy .env.example .env   # 填 NAPCAT_DIR 和 key 文件路径，只填这一次
 .\start_ui.bat           # 同步 NapCat 配置 -> 起 web -> 起 NapCat
 # http://127.0.0.1:18787
@@ -17,7 +17,9 @@ copy .env.example .env   # 填 NAPCAT_DIR 和 key 文件路径，只填这一次
 
 | 目录 | 职责 |
 |---|---|
-| `apps/qqbot/` | 经授权的 OneBot/NapCat 群精华采集；导出资料默认保持私有并先经人工审阅 |
+| `apps/qqbot/` | 经授权的 OneBot/NapCat 群精华采集、`/毯` 工具任务和群技巧库；导出资料默认保持私有并先经人工审阅 |
+| `apps/maibot_plugin/underline_tools/` | MaiBot 插件：让麦麦只读地查技巧库，并把 `/毯` 让给毯毯 |
+| `apps/qqbot/archive/persona/` | 旧版自研人格、风格记忆和情绪模块，已由 MaiBot 取代，不再运行 |
 | `../underline_wiki/` | 独立的知识资产目录，由提取任务整理 |
 | `runtime/private/` | 私有 QQ 消息与整理结果，不进入 Git |
 | `config/api/` | 旧本地密钥，保留且不进入 Git |

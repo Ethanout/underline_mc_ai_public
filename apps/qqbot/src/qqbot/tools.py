@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import json
 import os
-import uuid
 from dataclasses import dataclass
 
-from .runtime import RuntimeSettings
 from .store import dumps
 
 
@@ -15,6 +13,25 @@ def admin_ids():
     return {
         item.strip() for item in os.environ.get("QQBOT_ADMIN_IDS", "").split(",") if item.strip()
     }
+
+
+NO_INVENTION = "仅返回实际取得的资料，不能补造缺失历史。"
+DESCRIPTIONS = {
+    "search_chat": "按关键词在本群聊天记录里找消息，可限定发言人和最近几天。",
+    "read_chat_around": "读某条消息前后的聊天。",
+    "read_history": "读发起消息（或它引用的消息）之前的若干条，或者一段编号范围。",
+    "read_quoted": "读某条消息引用的原消息。",
+    "read_forward": "读本群出现过的合并转发。",
+    "read_essence": "读本群的精华消息列表。",
+    "view_image": "看某条消息里的图片。",
+    "search_knowledge": "查本群的数据包技巧库，再查聊天记录。技巧是 AI 整理、未验证的。",
+    "collect_tricks": "把一段聊天、一条合并转发或精华里的数据包技术内容收进技巧库（管理员）。",
+    "read_file": "读本机文件（管理员）。配置和密钥文件读不了。",
+    "write_file": "写本机文件（管理员）。",
+    "run_command": "在本机执行命令（管理员）。",
+    "web_read": "读一个网页（管理员）。",
+    "web_search": "网页搜索（管理员）。",
+}
 
 
 @dataclass
@@ -31,17 +48,11 @@ class ToolRegistry:
         self,
         store,
         onebot=None,
-        vector_search=None,
         image_view=None,
         max_items=None,
         max_chars=None,
     ):
-        self.store, self.onebot, self.vector_search, self.image_view = (
-            store,
-            onebot,
-            vector_search,
-            image_view,
-        )
+        self.store, self.onebot, self.image_view = store, onebot, image_view
         self.max_items = max(
             1,
             int(
@@ -57,7 +68,6 @@ class ToolRegistry:
             ),
         )
         self.definitions = {}
-        self.runtime = RuntimeSettings(store)
         self.register(
             "search_chat",
             self.search_chat,
@@ -88,8 +98,8 @@ class ToolRegistry:
         self.register("read_essence", self.read_essence)
         self.register("view_image", self.view_image, properties={"message_id": "string"})
         self.register(
-            "search_memory",
-            self.search_memory,
+            "search_knowledge",
+            self.search_knowledge,
             libraries=("related", "chat"),
             parameters={
                 "queries": {
@@ -100,27 +110,16 @@ class ToolRegistry:
                 }
             },
         )
-        self.register(
-            "remember", self.remember, True, ("unrelated",), properties={"content": "string"}
-        )
-        self.register(
-            "forget", self.forget, True, ("unrelated",), properties={"memory_id": "string"}
-        )
-        self.register(
-            "adjust_runtime",
-            lambda t, a: self.runtime.adjust(a["name"], a["value"], a["reason"]),
-            properties={"name": "string", "value": "number", "reason": "string"},
-        )
-        self.register("reset_runtime", self.reset_runtime, True)
-        self.register(
-            "record_memory_use",
-            self.record_memory_use,
-            libraries=("related",),
-            properties={"memory_id": "string", "position": "string", "quality": "number"},
-        )
 
     def register(
-        self, name, handler, admin_only=False, libraries=("chat",), properties=None, parameters=None
+        self,
+        name,
+        handler,
+        admin_only=False,
+        libraries=("chat",),
+        properties=None,
+        parameters=None,
+        description="",
     ):
         schema = parameters or {key: {"type": kind} for key, kind in (properties or {}).items()}
         self.definitions[name] = Tool(
@@ -128,7 +127,7 @@ class ToolRegistry:
             admin_only,
             libraries,
             {"type": "object", "properties": schema},
-            "仅返回实际取得的资料，不能补造缺失历史。",
+            (description or DESCRIPTIONS.get(name, "")) + NO_INVENTION,
         )
 
     def bound_task(self, task):
@@ -167,8 +166,6 @@ class ToolRegistry:
                 raise ValueError("工具参数必须是对象")
             if "group_id" in args and str(args["group_id"]) != task["group_id"]:
                 raise PermissionError("不能跨群读取资料")
-            if args.get("category") == "unrelated" and not self.is_admin(task):
-                raise PermissionError("普通成员不能读取无关库")
             result = spec.handler(task, args)
         except PermissionError as exc:
             denied = True
@@ -235,12 +232,6 @@ class ToolRegistry:
             and r["ts"] >= cutoff
             and (not speaker or str(speaker) in (r["user_id"], r["nickname"], r["card"]))
         ]
-        if self.vector_search:
-            hits = self.vector_search(task["group_id"], keyword)
-            for hit in hits:
-                row = self.store.message(task["group_id"], hit["id"])
-                if row and row["id"] not in {r["id"] for r in rows}:
-                    rows.append(row)
         rows.sort(key=lambda r: (r["ts"], r["id"]))
         limit = max(0, min(self.max_items, int(args.get("limit", self.max_items))))
         return self._output(rows[-limit:] if limit else [])
@@ -341,71 +332,31 @@ class ToolRegistry:
             "missing": missing,
         }
 
-    def search_memory(self, task, args):
+    def search_knowledge(self, task, args):
+        """The group's trick library, then its chat history, for 1-3 keywords."""
         queries = args.get("queries", [])
         if not isinstance(queries, list) or not 1 <= len(queries) <= 3:
-            raise ValueError("记忆检索需要 1–3 条查询")
-        rows = self.store.rows("SELECT * FROM memory_state WHERE group_id=?", (task["group_id"],))
+            raise ValueError("检索需要 1–3 条关键词")
+        queries = [str(query) for query in queries if str(query).strip()]
+        if not queries:
+            raise ValueError("检索关键词不能为空")
         hits = {}
+        rows = self.store.rows(
+            "SELECT * FROM memory_state WHERE group_id=? AND kind='trick'", (task["group_id"],)
+        )
         for row in rows:
-            if row["category"] != "related" and not self.is_admin(task):
-                continue
-            if json.loads(row["state"]).get("merged_into"):
-                continue
-            if any(str(query) in row["content"] for query in queries):
-                label = (
-                    "约定"
-                    if row["kind"] == "note" and row["author"] in admin_ids()
-                    else row["kind"]
-                )
-                hits[row["id"]] = {**row, "label": label, "date": row["updated"]}
+            if any(query in row["content"] for query in queries):
+                hits[row["id"]] = {
+                    "id": row["id"],
+                    "label": "技巧（AI 整理、未验证）",
+                    "content": row["content"],
+                    "sources": json.loads(row["sources"]),
+                    "date": row["updated"],
+                }
         for query in queries:
             for row in self.search_chat(task, {"keyword": query})["messages"]:
                 hits[row["id"]] = {**row, "label": "聊天", "date": row["ts"]}
         return {"results": list(hits.values())}
-
-    def remember(self, task, args):
-        content = str(args.get("content", "")).strip()
-        if not content:
-            raise ValueError("记忆内容不能为空")
-        mid = "note:" + uuid.uuid4().hex
-        metadata = {
-            "author_name": task["nickname"],
-            "strength": 86400,
-            "activation": 0,
-            "last_used": self.store.clock(),
-            "evidence": [],
-        }
-        self.store.write(
-            "INSERT INTO memory_state VALUES(?,?,?,?,?,?,?,?,?)",
-            (
-                mid,
-                task["group_id"],
-                "unrelated",
-                "note",
-                task["user_id"],
-                f"{task['nickname'] or task['user_id']}说他倾向于：{content}；可根据当时情境回应。",
-                dumps([]),
-                dumps(metadata),
-                self.store.clock(),
-            ),
-        )
-        self.store.memory_change(mid, "remember", {"author": task["user_id"]})
-        return {"id": mid, "label": "约定"}
-
-    def forget(self, task, args):
-        rows = self.store.rows(
-            "SELECT * FROM memory_state WHERE id=? AND group_id=?",
-            (args.get("memory_id"), task["group_id"]),
-        )
-        if not rows or rows[0]["kind"] != "note":
-            raise ValueError("只能删除当前群的 note，不能删除聊天原文")
-        self.store.recycle(rows[0])
-        return {"status": "recycled"}
-
-    def reset_runtime(self, task, args):
-        self.store.write("DELETE FROM runtime_overrides")
-        return {"status": "reset"}
 
     def view_image(self, task, args):
         mid = self._message_id(task, args["message_id"])
@@ -415,14 +366,3 @@ class ToolRegistry:
         if not self.image_view:
             raise RuntimeError("图片输入工具未配置")
         return self.image_view(json.loads(row["raw"]))
-
-    def record_memory_use(self, task, args):
-        from .memory_model import MemoryService
-
-        return MemoryService(self.store).record_use(
-            task["group_id"],
-            args["memory_id"],
-            args["position"],
-            float(args.get("quality", 1)),
-            allow_unrelated=self.is_admin(task),
-        )

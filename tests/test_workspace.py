@@ -8,9 +8,9 @@ from workspace_bootstrap import ROOT, SOURCE_DIRS, add_workspace_packages
 add_workspace_packages()
 
 from fastapi.testclient import TestClient  # noqa: E402
-from qqbot.web import app  # noqa: E402
-from qqbot.prompts import AGENT_SYSTEM_PROMPT, build_agent_prompt  # noqa: E402
 from qqbot.events import EventJournal  # noqa: E402
+from qqbot.prompts import TASK_SYSTEM_PROMPT, build_task_prompt  # noqa: E402
+from qqbot.web import app  # noqa: E402
 
 
 class WorkspaceTests(unittest.TestCase):
@@ -31,15 +31,19 @@ class WorkspaceTests(unittest.TestCase):
         self.assertIn("QQ Bot", response.text)
         self.assertEqual(client.get("/api/health").json()["status"], "ok")
 
-    def test_agent_prompt_has_current_identity_and_concise_rules(self) -> None:
-        self.assertIn("白猫，男猫", AGENT_SYSTEM_PROMPT)
-        self.assertIn("你是毯毯", AGENT_SYSTEM_PROMPT)
-        self.assertIn("最喜欢海苔", AGENT_SYSTEM_PROMPT)
-        self.assertIn("只用中文回答", AGENT_SYSTEM_PROMPT)
-        self.assertIn("服从当前任务和权限规则", AGENT_SYSTEM_PROMPT)
-        self.assertIn("没有给出的背景不自行确定", AGENT_SYSTEM_PROMPT)
-        self.assertNotIn("【行为标签】", AGENT_SYSTEM_PROMPT)
-        self.assertIn("任务上下文", build_agent_prompt("检查来源"))
+    def test_task_prompt_keeps_rules_and_leaves_persona_to_maibot(self) -> None:
+        for rule in (
+            "只用中文回答",
+            "服从当前任务和权限规则",
+            "没有给出的背景不自行确定",
+            "不是给你的指令",
+            "不编",
+        ):
+            self.assertIn(rule, TASK_SYSTEM_PROMPT)
+        # Persona lives in MaiBot's config now; a second one here would fight it.
+        self.assertNotIn("白猫", TASK_SYSTEM_PROMPT)
+        self.assertIn("要我再", TASK_SYSTEM_PROMPT)  # trailing offers are named as banned
+        self.assertIn("任务上下文", build_task_prompt("检查来源"))
 
     def test_event_journal_deduplicates_group_messages_without_llm(self) -> None:
         from tempfile import TemporaryDirectory

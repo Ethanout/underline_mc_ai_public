@@ -11,8 +11,8 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+from .deepseek import thinking_fields, token_budget
 from .images import image_segments, sniff_image
-from .reply import thinking_fields, token_budget
 from .store import Store
 
 MIN_TTL = 3600

@@ -18,7 +18,7 @@ import time
 from urllib.parse import urlparse
 
 from . import napcat
-from .settings import load_settings
+from .settings import force_utf8_stdout, load_settings
 
 
 def port_answers(host: str, port: int, timeout: float = 0.5) -> bool:
@@ -69,14 +69,38 @@ def sync_napcat() -> tuple[bool, str]:
     if not token:
         raise ValueError("事件 token 没准备好，看上面 settings 的报错")
     changed = napcat.sync(path, event_url(web_host(), web_port()), token)
+    if os.environ.get("MAIBOT_DIR", "").strip():
+        changed = sync_maibot_ws(path) or changed
     print(f"NapCat 配置：{path}（{'已更新，旧的备份成 .bak' if changed else '无需改动'}）")
     return changed, napcat.config_uin(path)
 
 
-def main(argv: list[str] | None = None) -> int:
-    from .style_memory import _force_utf8_stdout
+def maibot_ws_port() -> int:
+    raw = os.environ.get("MAIBOT_NAPCAT_WS_PORT", "").strip()
+    try:
+        return int(raw) if raw else napcat.DEFAULT_WS_PORT
+    except ValueError as exc:
+        raise ValueError(f"MAIBOT_NAPCAT_WS_PORT 不是端口号：{raw}") from exc
 
-    _force_utf8_stdout()
+
+def sync_maibot_ws(path) -> bool:
+    """Open the loopback WebSocket MaiBot's NapCat adapter connects to.
+
+    MaiBot itself is not started from here: it has its own launcher and its
+    own EULA prompt.  The token stays in its file; only the path is printed.
+    """
+    port = maibot_ws_port()
+    token = napcat.ensure_event_token(napcat.DEFAULT_WS_TOKEN_FILE)
+    changed = napcat.sync_ws_server(path, port, token)
+    print(
+        f"MaiBot 连接：NapCat 正向 WebSocket 127.0.0.1:{port}，"
+        f"token 在 {napcat.DEFAULT_WS_TOKEN_FILE}（填进 MaiBot NapCat 适配器的 [napcat_server]）"
+    )
+    return changed
+
+
+def main(argv: list[str] | None = None) -> int:
+    force_utf8_stdout()
     parser = argparse.ArgumentParser(prog="python -m qqbot start", description="一键启动：同步 NapCat 配置，先起 web，再起 NapCat")
     parser.add_argument("--no-napcat", action="store_true", help="只起 web，不启动 NapCat")
     args = parser.parse_args(argv)

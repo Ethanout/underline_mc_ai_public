@@ -1,7 +1,7 @@
 [project]
 name = "underline-mc-qqbot"
-version = "0.1.0"
-description = "QQ 群精华消息采集与知识库接入"
+version = "0.2.0"
+description = "毯毯：QQ 群的工具任务和知识库服务，聊天交给 MaiBot"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.116.0,<1.0",
@@ -9,12 +9,6 @@ dependencies = [
     "pydantic>=2.0.0",
     "python-dotenv>=1.0.0",
 ]
-
-[project.optional-dependencies]
-# 风格记忆要落盘检索。web 服务本身不需要它，缺了也照跑。
-style = ["chromadb>=0.5.0"]
-# 本机跑 bge-m3 才需要，几个 GB，默认不装；走 api 后端就不用。
-local = ["sentence-transformers>=3.0.0"]
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -29,6 +23,5 @@ qqbot = ["static/*.html"]
 [project.scripts]
 qq-essence-export = "qqbot.essence_exporter:main"
 qqbot-web = "qqbot.web:main"
-qqbot-style-memory = "qqbot.style_memory:main"
 qqbot-config = "qqbot.settings:main"
 qqbot-start = "qqbot.start:main"

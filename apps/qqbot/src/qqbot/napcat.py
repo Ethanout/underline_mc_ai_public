@@ -11,6 +11,10 @@ read from its ``httpServers`` entry -- and ``.env`` is the source for the push
 side, which :func:`sync` writes into ``httpClients``.  The event token is
 generated on first use and kept in ``config/api/`` (gitignored).
 
+MaiBot's NapCat adapter connects to a forward WebSocket server instead;
+:func:`sync_ws_server` adds one, with its own generated token, so the adapter
+and this service can share one NapCat login without either touching the other.
+
 Nothing here prints a token.  The NapCat file is backed up before each write.
 """
 from __future__ import annotations
@@ -24,9 +28,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 CLIENT_NAME = "tantan"
+WS_SERVER_NAME = "maibot"
 DEFAULT_EVENT_TOKEN_FILE = "config/api/qqbot_event.txt"
+DEFAULT_WS_TOKEN_FILE = "config/api/maibot_napcat_ws.txt"
+DEFAULT_WS_PORT = 3001
 
 
 @dataclass(frozen=True)
@@ -78,7 +84,7 @@ def api_server(config: dict[str, Any]) -> OneBotServer | None:
 
 
 def ensure_event_token(path: str | Path = DEFAULT_EVENT_TOKEN_FILE) -> str:
-    """Return the event token, generating and saving one the first time."""
+    """Return the token kept in ``path``, generating and saving one the first time."""
     token_file = Path(path)
     if token_file.is_file():
         token = token_file.read_text(encoding="utf-8").strip()
@@ -106,25 +112,66 @@ def desired_client(url: str, token: str, existing: dict[str, Any] | None = None)
     return client
 
 
-def sync(path: Path, url: str, token: str) -> bool:
-    """Point NapCat's push client at ``url`` with ``token``.  True if changed."""
-    config = read_config(path)
-    network = config.setdefault("network", {})
-    clients = network.setdefault("httpClients", [])
-    index = next((i for i, item in enumerate(clients) if item.get("name") == CLIENT_NAME), None)
-    current = clients[index] if index is not None else None
-    wanted = desired_client(url, token, current)
-    if current == wanted:
-        return False
-    if index is None:
-        clients.append(wanted)
-    else:
-        clients[index] = wanted
+def _write(path: Path, config: dict[str, Any]) -> None:
     shutil.copy2(path, path.with_suffix(path.suffix + ".bak"))
     partial = path.with_suffix(path.suffix + ".part")
     partial.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
     os.replace(partial, path)
+
+
+def _upsert(config: dict[str, Any], kind: str, name: str, wanted) -> bool:
+    entries = config.setdefault("network", {}).setdefault(kind, [])
+    index = next((i for i, item in enumerate(entries) if item.get("name") == name), None)
+    current = entries[index] if index is not None else None
+    value = wanted(current)
+    if current == value:
+        return False
+    if index is None:
+        entries.append(value)
+    else:
+        entries[index] = value
     return True
+
+
+def sync(path: Path, url: str, token: str) -> bool:
+    """Point NapCat's push client at ``url`` with ``token``.  True if changed."""
+    config = read_config(path)
+    changed = _upsert(config, "httpClients", CLIENT_NAME, lambda c: desired_client(url, token, c))
+    if changed:
+        _write(path, config)
+    return changed
+
+
+def desired_ws_server(
+    port: int, token: str, existing: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    server = dict(existing or {})
+    server.update(
+        {
+            "enable": True,
+            "name": WS_SERVER_NAME,
+            "host": "127.0.0.1",
+            "port": int(port),
+            "messagePostFormat": "array",
+            "reportSelfMessage": False,
+            "token": token,
+        }
+    )
+    server.setdefault("enableForcePushEvent", True)
+    server.setdefault("debug", False)
+    server.setdefault("heartInterval", 30000)
+    return server
+
+
+def sync_ws_server(path: Path, port: int, token: str) -> bool:
+    """Ensure the loopback WebSocket server MaiBot's adapter dials.  True if changed."""
+    config = read_config(path)
+    changed = _upsert(
+        config, "websocketServers", WS_SERVER_NAME, lambda c: desired_ws_server(port, token, c)
+    )
+    if changed:
+        _write(path, config)
+    return changed
 
 
 QQ_EXE_CANDIDATES = (

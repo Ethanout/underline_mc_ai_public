@@ -1,7 +1,7 @@
 """Local configuration, read in one place so filling ``.env`` is the whole setup.
 
 Importing ``qqbot`` runs :func:`load_settings`, which means every entry point --
-``python -m qqbot.web``, ``qqbot-style-memory``, the root ``app.py`` -- sees the
+``python -m qqbot.web``, ``python -m qqbot start``, the root ``app.py`` -- sees the
 same values without a per-shell ``$env:`` line.  Order matters: ``web.py`` reads
 four variables at *module import* time, so the load has to happen before that
 module is imported, and ``qqbot/__init__.py`` is the earliest shared point.
@@ -24,89 +24,42 @@ DEFAULT_ENV_FILE = ".env"
 
 # ``<NAME>_FILE`` names a file; the paired ``<NAME>`` gets its stripped contents.
 KEY_FILES: dict[str, str] = {
-    "QQBOT_EMBED_API_KEY_FILE": "QQBOT_EMBED_API_KEY",
     "DEEPSEEK_KEY_FILE": "DEEPSEEK_API_KEY",
     "ONEBOT_ACCESS_TOKEN_FILE": "ONEBOT_ACCESS_TOKEN",
     "QQBOT_EVENT_TOKEN_FILE": "QQBOT_EVENT_TOKEN",
+    "QQBOT_PLUGIN_TOKEN_FILE": "QQBOT_PLUGIN_TOKEN",
 }
+DEFAULT_PLUGIN_TOKEN_FILE = "config/api/qqbot_plugin.txt"
 
 # Reported by ``qqbot-config``; values are shown as set/absent, never printed.
 REPORTED_VARS: tuple[str, ...] = (
     "NAPCAT_DIR",
     "NAPCAT_UIN",
-    "QQBOT_EMBED_BACKEND",
-    "QQBOT_EMBED_BASE_URL",
-    "QQBOT_EMBED_MODEL",
-    "QQBOT_EMBED_DEVICE",
-    "QQBOT_EMBED_API_KEY",
+    "MAIBOT_DIR",
+    "MAIBOT_NAPCAT_WS_PORT",
     "DEEPSEEK_API_KEY",
     "ONEBOT_ENDPOINT",
     "ONEBOT_ACCESS_TOKEN",
     "QQBOT_EVENT_TOKEN",
+    "QQBOT_PLUGIN_TOKEN",
     "QQBOT_ADMIN_IDS",
+    "QQBOT_GROUPS",
     "QQBOT_MODEL",
-    "QQBOT_JUDGE_MODEL",
     "QQBOT_REASONING_EFFORT",
-    "QQBOT_JUDGE_REASONING_EFFORT",
-    "QQBOT_IMAGE_FILE_TTL",
-    "QQBOT_EVENT_LOG",
-    "QQBOT_STYLE_DB",
-    "QQBOT_IMAGE_DIR",
-    "QQBOT_DB",
-    "QQBOT_TOOL_ROUNDS",
     "QQBOT_THINKING_BUDGET",
-    "QQBOT_REPLY_CONTEXT_CHARS",
-    "QQBOT_MEMORY_INGEST_MINUTES",
-    "QQBOT_PROACTIVE_GROUPS",
-    "QQBOT_PROACTIVE_MIN_GAP",
-    "QQBOT_PROACTIVE_MAX_PER_HOUR",
-    "QQBOT_WEB_HOST",
-    "QQBOT_WEB_PORT",
-    "QQBOT_REPLY_COOLDOWN",
-    "QQBOT_REPLY_MAX_TOKENS",
-    "QQBOT_STYLE_REPLY_K",
+    "QQBOT_TASK_MAX_TOKENS",
+    "QQBOT_TOOL_ROUNDS",
     "QQBOT_TOOL_MAX_ITEMS",
     "QQBOT_TOOL_MAX_CHARS",
+    "QQBOT_IMAGE_FILE_TTL",
+    "QQBOT_EVENT_LOG",
+    "QQBOT_IMAGE_DIR",
+    "QQBOT_DB",
+    "QQBOT_REPLY_CONTEXT_CHARS",
     "QQBOT_TRICKS_DIR",
     "QQBOT_ESSENCE_SYNC_MINUTES",
-    "QQBOT_MEMORY_SLEEP_MINUTES",
-    "QQBOT_MEMORY_FORGET_ENABLED",
-    "QQBOT_MEMORY_MATCH_THRESHOLD",
-    "QQBOT_STYLE_NOTES_HOURS",
-    "QQBOT_ACTIVE_MIN_SECONDS",
-    "QQBOT_ACTIVE_MAX_SECONDS",
-    "QQBOT_JUDGE_THRESHOLD",
-    "QQBOT_PROFILE_HALF_LIFE",
-    "QQBOT_EMOTION_HALF_LIFE",
-    "QQBOT_MENTION_WEIGHT",
-    "QQBOT_PICKUP_SCALE",
-    *(
-        "QQBOT_BASELINE_" + name.upper()
-        for name in ("excitement", "mood", "interest", "energy", "irritation", "closeness")
-    ),
-    *(
-        "QQBOT_MEMORY_" + name.upper()
-        for name in (
-            "initial_strength",
-            "decay",
-            "retrieval_threshold",
-            "activation_half_life",
-            "hit_gain",
-            "reinforcement_gain",
-            "spacing_scale",
-            "repeat_window",
-            "repeat_penalty",
-            "interference_rate",
-            "compression_activation",
-            "compression_min_chars",
-            "merge_similarity",
-            "merge_max_chars",
-            "forgetting_threshold",
-            "low_value_threshold",
-            "permanent_strength",
-            "permanent_min_uses",
-        )
-    ),
+    "QQBOT_WEB_HOST",
+    "QQBOT_WEB_PORT",
 )
 
 _loaded = False
@@ -176,7 +129,29 @@ def load_settings(force: bool = False) -> Path | None:
 
     _key_file_sources.update(_apply_key_files())
     _key_file_sources.update(_apply_napcat())
+    _key_file_sources.update(_apply_plugin_token())
     return _env_path
+
+
+def _apply_plugin_token() -> dict[str, str]:
+    """Generate the token the MaiBot plugin uses, once ``MAIBOT_DIR`` is set.
+
+    Unlike the event token, there is no "open" fallback: without this token the
+    plugin endpoints refuse every call (see ``web.plugin_authorized``).
+    """
+    if os.environ.get("QQBOT_PLUGIN_TOKEN", "").strip():
+        return {}
+    if not os.environ.get("MAIBOT_DIR", "").strip():
+        return {}
+    from . import napcat
+
+    token_file = os.environ.get("QQBOT_PLUGIN_TOKEN_FILE", "").strip() or DEFAULT_PLUGIN_TOKEN_FILE
+    try:
+        os.environ["QQBOT_PLUGIN_TOKEN"] = napcat.ensure_event_token(token_file)
+    except OSError as exc:
+        print(f"插件 token 文件 {token_file} 读写失败：{exc}", file=sys.stderr)
+        return {}
+    return {"QQBOT_PLUGIN_TOKEN": token_file}
 
 
 def _apply_napcat() -> dict[str, str]:
@@ -185,7 +160,7 @@ def _apply_napcat() -> dict[str, str]:
     NapCat already holds the API endpoint and token, so copying them into
     ``.env`` only creates a second place to get them wrong.  The event token is
     generated on first use.  Failures are reported, never raised: a missing
-    NapCat must not stop the style-memory tools from importing ``qqbot``.
+    NapCat must not stop the exporter or tests from importing ``qqbot``.
     """
     from . import napcat
 
@@ -235,11 +210,17 @@ def described() -> list[tuple[str, str]]:
     return rows
 
 
+def force_utf8_stdout() -> None:
+    """Windows consoles default to GBK and would mangle the Chinese output."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 def main() -> int:
     """Print what the environment resolved to, without printing any secret."""
-    from .style_memory import _force_utf8_stdout
-
-    _force_utf8_stdout()
+    force_utf8_stdout()
     load_settings()
     if _env_path is not None:
         print(f"配置文件：{_env_path}")
@@ -247,25 +228,6 @@ def main() -> int:
         print(f"没找到 {DEFAULT_ENV_FILE}（可以用 {ENV_FILE_VAR} 指定路径），只读进程环境变量")
     for name, description in described():
         print(f"  {name}={description}")
-
-    from .embedding import build_embedder
-
-    backend = os.environ.get("QQBOT_EMBED_BACKEND", "api").strip().lower()
-    print(f"\nembedding 后端：{backend}")
-    try:
-        embedder = build_embedder()
-    except ValueError as exc:
-        print(f"  建不起来：{exc}")
-        return 1
-    print(f"  {embedder.name}")
-    if backend == "api":
-        # One short request proves the key, the base URL and the model at once.
-        try:
-            vector = embedder.encode(["连接测试"])[0]
-        except Exception as exc:  # noqa: BLE001 - report whatever the endpoint said
-            print(f"  连不上：{exc}")
-            return 1
-        print(f"  通得过，向量维度 {len(vector)}")
     return 0
 
 

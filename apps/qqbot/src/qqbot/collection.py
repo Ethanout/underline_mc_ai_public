@@ -5,9 +5,8 @@ from __future__ import annotations
 import json
 import os
 
-from .reply import thinking_fields, token_budget
+from .deepseek import thinking_fields, token_budget
 from .tricks import TrickStore
-
 
 CLASSIFY_PROMPT = """判断一条 QQ 群消息（可能来自群精华或合并转发）是不是值得收录的 Minecraft 原版创作技术资料。
 
