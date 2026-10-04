@@ -56,6 +56,7 @@ event_store = Store()
 event_journal = EventJournal(Path(os.environ.get("QQBOT_EVENT_LOG", "runtime/private/qq_events.jsonl")), store=event_store)
 # Own single worker: a slow image host must not hold up replies or export jobs.
 image_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="qqbot-images")
+memory_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="qqbot-memory")
 image_cache = ImageCache(os.environ.get("QQBOT_IMAGE_DIR", DEFAULT_IMAGE_DIR))
 reply_policy = ReplyPolicy(float(os.environ.get("QQBOT_REPLY_COOLDOWN", "1")))
 reply_max_tokens = int(os.environ.get("QQBOT_REPLY_MAX_TOKENS", "220"))
@@ -108,6 +109,9 @@ def background_work(stop):
         try:
             ingest_style()
             sync_essence()
+            from .memory_model import MemoryService
+            for row in event_store.rows("SELECT DISTINCT group_id FROM memory_state"):
+                MemoryService(event_store).sleep(row["group_id"])
         except Exception as exc:
             print(f"增量记忆入库失败：{type(exc).__name__}")
 
@@ -286,6 +290,10 @@ async def receive_onebot_event(request: Request) -> dict[str, Any]:
 
 def handle_event(event: dict[str, Any]) -> dict[str, Any]:
     accepted = event_journal.append(event)
+    if accepted:
+        from .memory_model import MemoryService
+        memory_executor.submit(MemoryService(event_store).activate_candidates,
+            str(event.get("group_id", "")), "".join(s.get("data", {}).get("text", "") for s in event.get("message", []) if isinstance(s, dict) and s.get("type") == "text"))
     if accepted and image_segments(event):
         # QQ image links expire within hours; copy them now, not at ingestion.
         image_executor.submit(image_cache.fetch_event, event)
@@ -408,9 +416,8 @@ def audit(limit: int = 100) -> dict[str, Any]:
 
 @app.get("/api/memory/forgetting")
 def forgetting() -> dict[str, Any]:
-    from .memory_model import MemoryModel
-    states = event_store.rows("SELECT * FROM memory_state")
-    return {"simulated": MemoryModel().simulate_forgetting(states), "deleted": []}
+    return {"simulated": [event_store.get_state("memory_sleep:" + row["group_id"], {})
+        for row in event_store.rows("SELECT DISTINCT group_id FROM memory_state")], "enabled": os.environ.get("QQBOT_MEMORY_FORGET_ENABLED", "0")}
 
 
 @app.get("/api/recycle-bin")

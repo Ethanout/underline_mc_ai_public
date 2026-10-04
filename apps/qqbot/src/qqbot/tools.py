@@ -44,6 +44,8 @@ class ToolRegistry:
         self.register("adjust_runtime", lambda t, a: self.runtime.adjust(a["name"], a["value"], a["reason"]),
                       properties={"name": "string", "value": "number", "reason": "string"})
         self.register("reset_runtime", self.reset_runtime, True)
+        self.register("record_memory_use", self.record_memory_use, libraries=("related",),
+                      properties={"memory_id": "string", "position": "string", "quality": "number"})
 
     def register(self, name, handler, admin_only=False, libraries=("chat",), properties=None, parameters=None):
         schema = parameters or {key: {"type": kind} for key, kind in (properties or {}).items()}
@@ -211,6 +213,7 @@ class ToolRegistry:
         hits = {}
         for row in rows:
             if row["category"] != "related" and not self.is_admin(task): continue
+            if json.loads(row["state"]).get("merged_into"): continue
             if any(str(query) in row["content"] for query in queries):
                 label = "约定" if row["kind"] == "note" and row["author"] in admin_ids() else row["kind"]
                 hits[row["id"]] = {**row, "label": label, "date": row["updated"]}
@@ -245,3 +248,8 @@ class ToolRegistry:
         if not row: return {"images": [], "missing": [mid]}
         if not self.image_view: raise RuntimeError("图片输入工具未配置")
         return self.image_view(json.loads(row["raw"]))
+
+    def record_memory_use(self, task, args):
+        from .memory_model import MemoryService
+        return MemoryService(self.store).record_use(task["group_id"], args["memory_id"],
+            args["position"], float(args.get("quality", 1)), allow_unrelated=self.is_admin(task))
