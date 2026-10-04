@@ -37,6 +37,24 @@ image_cache = ImageCache(os.environ.get("QQBOT_IMAGE_DIR", DEFAULT_IMAGE_DIR))
 reply_policy = ReplyPolicy(float(os.environ.get("QQBOT_REPLY_COOLDOWN", "1")))
 reply_max_tokens = int(os.environ.get("QQBOT_REPLY_MAX_TOKENS", "220"))
 reply_context_chars = int(os.environ.get("QQBOT_REPLY_CONTEXT_CHARS", "3000"))
+reply_style_k = int(os.environ.get("QQBOT_STYLE_REPLY_K", "5"))
+
+_style_memory_lock = threading.Lock()
+_style_memory_instance = None
+
+
+def _get_style_memory():
+    """Lazily build a StyleMemory, or return None if not configured."""
+    global _style_memory_instance
+    db_path = os.environ.get("QQBOT_STYLE_DB", "")
+    if not db_path:
+        return None
+    with _style_memory_lock:
+        if _style_memory_instance is None:
+            from .embedding import build_embedder
+            from .style_memory import StyleMemory
+            _style_memory_instance = StyleMemory(db_path, build_embedder())
+        return _style_memory_instance
 
 
 DEFAULT_ONEBOT_ENDPOINT = "http://127.0.0.1:3000"
@@ -211,12 +229,24 @@ def reply_to_group(event: dict[str, Any], text: str) -> None:
             f"群名片：{sender.get('card', '')}\n"
             f"群角色：{sender.get('role', 'member')}"
         )
+        style_ctx = ""
+        if reply_style_k > 0:
+            try:
+                sm = _get_style_memory()
+                if sm is not None:
+                    hits = sm.search(text, context.group_id, k=reply_style_k, kind="text")
+                    if hits:
+                        lines = [h["text"] for h in hits if h.get("text")]
+                        style_ctx = "\n".join(lines)
+            except Exception as exc:  # noqa: BLE001
+                print(f"风格检索失败（不影响回复）：{exc}")
         answer = deepseek_reply(
             text,
             api_key,
             max_tokens=reply_max_tokens,
             sender_context=sender_context,
             recent_context=event_journal.recent_context(context.group_id, reply_context_chars),
+            style_context=style_ctx,
         )
         result = exporter.api_call(
             onebot_endpoint(),
