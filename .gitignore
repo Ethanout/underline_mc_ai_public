@@ -23,7 +23,9 @@ venv/
 
 # Environment & secrets
 .env
-config/api/*.txt
+# 根目录 config/ 整个放密钥（config/api/ 下是各家 key），不分扩展名一律不进 git。
+# 前导 / 只锚定根目录，不会误伤 apps/qqbot/config/config.example.json 这种模板。
+/config/
 apps/qqbot/config/config.local.json
 knowledge/archive/sources/qq_group_digest_*/
 
