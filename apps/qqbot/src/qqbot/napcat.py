@@ -205,5 +205,8 @@ def launch(directory: Path, uin: str = "") -> subprocess.Popen:
         # before; otherwise NapCat falls back to the QR code by itself.
         command += ["-q", uin]
         env["NAPCAT_QUICK_ACCOUNT"] = uin
+    # NapCat logs UTF-8; a fresh console starts on the ANSI code page (GBK on a
+    # Chinese Windows) and shows mojibake.  The bat ran ``chcp 65001`` first.
+    command = ["cmd", "/c", "chcp", "65001", ">nul", "&&", *command]
     flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
     return subprocess.Popen(command, cwd=directory, env=env, creationflags=flags)

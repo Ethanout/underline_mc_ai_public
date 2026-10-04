@@ -141,5 +141,19 @@ class SettingsTests(unittest.TestCase):
             self.assertNotIn("ONEBOT_ENDPOINT", os.environ)
 
 
+class LaunchTests(unittest.TestCase):
+    def test_console_switches_to_utf8_before_napcat(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "NapCatWinBootMain.exe").write_bytes(b"")
+            with mock.patch.object(napcat, "find_qq_exe", return_value=Path("C:/QQ/QQ.exe")), \
+                    mock.patch.object(napcat.subprocess, "Popen") as popen:
+                napcat.launch(root, "123")
+            command = popen.call_args.args[0]
+            self.assertEqual(command[:6], ["cmd", "/c", "chcp", "65001", ">nul", "&&"])
+            self.assertEqual(command[6], str(root.resolve() / "NapCatWinBootMain.exe"))
+            self.assertEqual(command[-2:], ["-q", "123"])
+
+
 if __name__ == "__main__":
     unittest.main()
