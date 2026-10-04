@@ -26,6 +26,7 @@ KEY_FILES: dict[str, str] = {
     "QQBOT_EMBED_API_KEY_FILE": "QQBOT_EMBED_API_KEY",
     "DEEPSEEK_KEY_FILE": "DEEPSEEK_API_KEY",
     "ONEBOT_ACCESS_TOKEN_FILE": "ONEBOT_ACCESS_TOKEN",
+    "QQBOT_EVENT_TOKEN_FILE": "QQBOT_EVENT_TOKEN",
 }
 
 # Reported by ``qqbot-config``; values are shown as set/absent, never printed.
@@ -37,6 +38,7 @@ REPORTED_VARS: tuple[str, ...] = (
     "QQBOT_EMBED_API_KEY",
     "DEEPSEEK_API_KEY",
     "ONEBOT_ACCESS_TOKEN",
+    "QQBOT_EVENT_TOKEN",
     "QQBOT_EVENT_LOG",
     "QQBOT_STYLE_DB",
     "QQBOT_WEB_HOST",
