@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
+import json
 import os
 import threading
 import uuid
@@ -10,7 +13,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -125,13 +129,46 @@ def health() -> dict[str, str]:
     }
 
 
+def event_authorized(body: bytes, signature: str, authorization: str, expected: str) -> bool:
+    """Check a pushed event against ``QQBOT_EVENT_TOKEN``.
+
+    NapCat (and OneBot 11 HTTP POST in general) never sends the token itself:
+    it signs the raw body, ``x-signature: sha1=<HMAC-SHA1(token, body)>``.  That
+    is the path that matters.  A plain ``Authorization: Bearer`` is accepted
+    too, for curl and for adapters that do send it.  No token configured means
+    the endpoint is open, as before.
+    """
+    if not expected:
+        return True
+    if signature.startswith("sha1="):
+        digest = hmac.new(expected.encode("utf-8"), body, hashlib.sha1).hexdigest()
+        return hmac.compare_digest(signature[5:].strip().lower(), digest)
+    supplied = authorization.removeprefix("Bearer ").strip()
+    return bool(supplied) and hmac.compare_digest(supplied.encode("utf-8"), expected.encode("utf-8"))
+
+
 @app.post("/api/onebot/event")
-def receive_onebot_event(event: dict[str, Any], authorization: str | None = Header(default=None)) -> dict[str, Any]:
+async def receive_onebot_event(request: Request) -> dict[str, Any]:
     """Receive a reverse HTTP event and journal it without an AI call."""
-    expected = os.environ.get("QQBOT_EVENT_TOKEN", "")
-    supplied = authorization.removeprefix("Bearer ").strip() if authorization else ""
-    if expected and supplied != expected:
+    # The signature covers the exact bytes sent, so read them before parsing.
+    body = await request.body()
+    if not event_authorized(
+        body,
+        request.headers.get("x-signature", ""),
+        request.headers.get("authorization", ""),
+        os.environ.get("QQBOT_EVENT_TOKEN", ""),
+    ):
         raise HTTPException(401, "事件 token 无效")
+    try:
+        event = json.loads(body)
+    except ValueError as exc:
+        raise HTTPException(400, "事件不是 JSON") from exc
+    if not isinstance(event, dict):
+        raise HTTPException(400, "事件不是 JSON 对象")
+    return await run_in_threadpool(handle_event, event)
+
+
+def handle_event(event: dict[str, Any]) -> dict[str, Any]:
     accepted = event_journal.append(event)
     if accepted and image_segments(event):
         # QQ image links expire within hours; copy them now, not at ingestion.
@@ -139,6 +176,8 @@ def receive_onebot_event(event: dict[str, Any], authorization: str | None = Head
     text = addressed_text(event)
     if text is not None:
         executor.submit(reply_to_group, event, text)
+    # NapCat reads this body as a "quick operation"; keep it free of keys such
+    # as reply/ban/kick so nothing here is ever acted on.
     return {"ok": True, "accepted": accepted, "reply_queued": text is not None}
 
 
