@@ -1,38 +1,39 @@
 """Small, local-only WebUI backend for the QQ essence exporter."""
+
 from __future__ import annotations
 
 import argparse
 import hashlib
 import hmac
+import ipaddress
 import json
 import os
 import threading
-import uuid
 import time
-from contextlib import asynccontextmanager
+import uuid
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from . import essence_exporter as exporter
+from .admin_tools import install_admin_tools
+from .agent import Agent, make_post, prompt_messages
+from .brain import BASELINE_NAMES, Brain, BrainParameters, TurnCoordinator, model_judge
+from .collection import install_collection_tools, model_classifier
+from .deepseek_files import DeepSeekImageFiles
 from .events import EventJournal
 from .images import DEFAULT_IMAGE_DIR, ImageCache, image_segments
-from .reply import ReplyContext, ReplyPolicy, addressed_text, deepseek_reply
-from .store import Store
-from .agent import Agent, make_post, prompt_messages
-from .reply import probe_capabilities
-from .tools import ToolRegistry
-from .deepseek_files import DeepSeekImageFiles
-from .admin_tools import install_admin_tools
-from .collection import install_collection_tools, model_classifier
-from .brain import Brain, BrainParameters, TurnCoordinator, model_judge, BASELINE_NAMES
+from .reply import ReplyContext, ReplyPolicy, addressed_text, probe_capabilities
 from .runtime import RuntimeSettings
+from .store import Store
+from .tools import ToolRegistry
 
 APP_ROOT = Path(__file__).resolve().parent
 STATIC_INDEX = APP_ROOT / "static" / "index.html"
@@ -40,13 +41,18 @@ executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="qqbot-export")
 jobs: dict[str, dict[str, Any]] = {}
 jobs_lock = threading.Lock()
 
+
 @asynccontextmanager
 async def lifespan(app):
     await run_in_threadpool(probe_models)
     stop = threading.Event()
-    worker = threading.Thread(target=background_work, args=(stop,), daemon=True, name="qqbot-maintenance")
+    worker = threading.Thread(
+        target=background_work, args=(stop,), daemon=True, name="qqbot-maintenance"
+    )
     worker.start()
-    brain_worker = threading.Thread(target=brain_work, args=(stop,), daemon=True, name="qqbot-brain")
+    brain_worker = threading.Thread(
+        target=brain_work, args=(stop,), daemon=True, name="qqbot-brain"
+    )
     brain_worker.start()
     recover_tasks()
     try:
@@ -58,8 +64,23 @@ async def lifespan(app):
 
 
 app = FastAPI(title="QQ Bot Exporter", version="0.1.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def local_only(request, call_next):
+    try:
+        local = request.client is not None and ipaddress.ip_address(request.client.host).is_loopback
+    except ValueError:
+        local = False
+    if not local:
+        return JSONResponse({"detail": "管理服务只接受本机连接"}, status_code=403)
+    return await call_next(request)
+
+
 event_store = Store()
-event_journal = EventJournal(Path(os.environ.get("QQBOT_EVENT_LOG", "runtime/private/qq_events.jsonl")), store=event_store)
+event_journal = EventJournal(
+    Path(os.environ.get("QQBOT_EVENT_LOG", "runtime/private/qq_events.jsonl")), store=event_store
+)
 # Own single worker: a slow image host must not hold up replies or export jobs.
 image_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="qqbot-images")
 memory_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="qqbot-memory")
@@ -78,23 +99,36 @@ _brains_lock = threading.Lock()
 _inflight = set()
 
 
-def get_brain(group_id):
+def get_brain(group_id, exclude_id=None):
     with _brains_lock:
         runtime = RuntimeSettings(event_store)
         baselines = {key: runtime.get("baseline_" + name) for key, name in BASELINE_NAMES.items()}
         params = BrainParameters(
-            proactive_groups=tuple(g.strip() for g in os.environ.get("QQBOT_PROACTIVE_GROUPS", "").split(",") if g.strip()),
+            proactive_groups=tuple(
+                g.strip()
+                for g in os.environ.get("QQBOT_PROACTIVE_GROUPS", "").split(",")
+                if g.strip()
+            ),
             proactive_min_gap=runtime.get("proactive_min_gap"),
+            judge_threshold=runtime.get("judge_threshold"),
             proactive_max_per_hour=int(runtime.get("proactive_max_per_hour")),
-            active_min=runtime.get("active_min_seconds"), active_max=runtime.get("active_max_seconds"),
+            active_min=runtime.get("active_min_seconds"),
+            active_max=runtime.get("active_max_seconds"),
             profile_half_life=float(os.environ.get("QQBOT_PROFILE_HALF_LIFE", "2592000")),
             emotion_half_life=float(os.environ.get("QQBOT_EMOTION_HALF_LIFE", "1800")),
             mention_weight=float(os.environ.get("QQBOT_MENTION_WEIGHT", "3")),
-            pickup_scale=float(os.environ.get("QQBOT_PICKUP_SCALE", ".01")))
+            pickup_scale=float(os.environ.get("QQBOT_PICKUP_SCALE", ".01")),
+        )
         if group_id not in _brains:
             brain = Brain(event_store, group_id, baselines=baselines, parameters=params)
             if event_store.get_state("brain:" + group_id) is None:
-                brain.rebuild_profile(event_store.messages(group_id))
+                brain.rebuild_profile(
+                    [
+                        row
+                        for row in event_store.messages(group_id)
+                        if row["message_id"] != str(exclude_id)
+                    ]
+                )
             _brains[group_id] = brain
         brain = _brains[group_id]
         brain.baselines, brain.params = baselines, params
@@ -102,11 +136,19 @@ def get_brain(group_id):
 
 
 def recover_tasks():
-    for task in event_store.rows("SELECT * FROM tasks WHERE status IN ('queued','running','completed')"):
+    for task in event_store.rows(
+        "SELECT * FROM tasks WHERE status IN ('queued','running','completed')"
+    ):
         row = event_store.message(task["group_id"], task["trigger_id"])
         if row:
             event = json.loads(row["raw"])
-            executor.submit(reply_to_group, event, addressed_text(event) or "继续任务", task, task["id"].startswith("proactive:"))
+            executor.submit(
+                reply_to_group,
+                event,
+                addressed_text(event) or "继续任务",
+                task,
+                ":proactive:" in task["id"],
+            )
 
 
 def brain_work(stop):
@@ -118,35 +160,51 @@ def brain_work(stop):
         for brain in brains:
             if now - last_tick >= 20:
                 brain.tick()
-            if brain.clock() >= brain.active_until or not brain.judgment_due() or not brain.can_proactively_speak():
+            if (
+                brain.clock() >= brain.active_until
+                or not brain.judgment_due()
+                or not brain.can_proactively_speak()
+            ):
                 continue
             with _brains_lock:
-                if brain.group_id in _inflight: continue
+                if brain.group_id in _inflight:
+                    continue
             rows = [r for r in event_store.messages(brain.group_id) if not r["is_bot"]]
-            if not rows: continue
+            if not rows:
+                continue
             row = rows[-1]
             event = json.loads(row["raw"])
-            task = event_store.create_task(brain.group_id, row["user_id"], f"proactive:{brain.version}", row["nickname"])
+            task = event_store.create_task(
+                brain.group_id, row["user_id"], f"proactive:{brain.version}", row["nickname"]
+            )
             if task["status"] in {"skipped", "failed", "sent"}:
                 brain.pending = []
                 brain.save()
                 continue
-            event_store.write("UPDATE tasks SET trigger_id=? WHERE id=?", (row["message_id"], task["id"]))
+            event_store.write(
+                "UPDATE tasks SET trigger_id=? WHERE id=?", (row["message_id"], task["id"])
+            )
             task = event_store.task(task["id"])
             executor.submit(reply_to_group, event, "参与讨论", task, True)
-        if now - last_tick >= 20: last_tick = now
+        if now - last_tick >= 20:
+            last_tick = now
 
 
 def _onebot(action, params):
-    return exporter.api_call(onebot_endpoint(), os.environ.get("ONEBOT_ACCESS_TOKEN"), action, params, False)
+    return exporter.api_call(
+        onebot_endpoint(), os.environ.get("ONEBOT_ACCESS_TOKEN"), action, params, False
+    )
 
 
 def _probe_upload(raw, ttl):
     from tempfile import TemporaryDirectory
+
     with TemporaryDirectory() as directory:
         path = Path(directory) / "probe.png"
         path.write_bytes(raw)
-        return DeepSeekImageFiles(event_store, os.environ.get("DEEPSEEK_API_KEY", ""), ttl=ttl).upload(path)[0]
+        return DeepSeekImageFiles(
+            event_store, os.environ.get("DEEPSEEK_API_KEY", ""), ttl=ttl
+        ).upload(path)[0]
 
 
 def probe_models():
@@ -155,7 +213,12 @@ def probe_models():
         _capabilities["error"] = "未配置 DeepSeek API key"
         return
     post = make_post(key)
-    for model in dict.fromkeys((os.environ.get("QQBOT_MODEL", "deepseek-flash"), os.environ.get("QQBOT_JUDGE_MODEL", "deepseek-flash"))):
+    for model in dict.fromkeys(
+        (
+            os.environ.get("QQBOT_MODEL", "deepseek-flash"),
+            os.environ.get("QQBOT_JUDGE_MODEL", "deepseek-flash"),
+        )
+    ):
         value = probe_capabilities(post, _probe_upload, model)
         _capabilities[model] = value
         event_store.set_state("capabilities:" + model, value)
@@ -163,6 +226,7 @@ def probe_models():
 
 def ingest_style():
     from .style_memory import ingest_journal, read_journal
+
     memory = _get_style_memory()
     if memory is None:
         return {"text": 0, "images": 0}
@@ -170,18 +234,42 @@ def ingest_style():
 
 
 def background_work(stop):
-    interval = float(os.environ.get("QQBOT_MEMORY_INGEST_MINUTES", "30")) * 60
-    if interval <= 0:
-        return
-    while not stop.wait(interval):
-        try:
-            ingest_style()
-            sync_essence()
-            from .memory_model import MemoryService
-            for row in event_store.rows("SELECT DISTINCT group_id FROM memory_state"):
-                MemoryService(event_store).sleep(row["group_id"])
-        except Exception as exc:
-            print(f"增量记忆入库失败：{type(exc).__name__}")
+    schedules = [
+        ("style_ingest", "QQBOT_MEMORY_INGEST_MINUTES", 30, 60, ingest_style),
+        ("essence_sync", "QQBOT_ESSENCE_SYNC_MINUTES", 60, 60, sync_essence),
+        ("memory_sleep", "QQBOT_MEMORY_SLEEP_MINUTES", 60, 60, sleep_memory),
+        ("style_notes", "QQBOT_STYLE_NOTES_HOURS", 24, 3600, refresh_style_notes),
+    ]
+    due = {
+        name: time.time() + float(os.environ.get(env, default)) * unit
+        for name, env, default, unit, _ in schedules
+    }
+    while not stop.wait(20):
+        for name, env, default, unit, run in schedules:
+            interval = float(os.environ.get(env, default)) * unit
+            if interval <= 0 or time.time() < due[name]:
+                continue
+            try:
+                run()
+            except Exception as exc:
+                event_store.set_state(
+                    "maintenance:" + name, {"at": time.time(), "error": type(exc).__name__}
+                )
+            due[name] = time.time() + interval
+
+
+def sleep_memory():
+    from .memory_model import MemoryService
+
+    for row in event_store.rows("SELECT DISTINCT group_id FROM memory_state"):
+        MemoryService(event_store).sleep(row["group_id"])
+
+
+def refresh_style_notes():
+    from .style_notes import refresh_notes
+
+    for row in event_store.rows("SELECT DISTINCT group_id FROM messages"):
+        refresh_notes(event_store, row["group_id"])
 
 
 def sync_essence():
@@ -195,7 +283,9 @@ def sync_essence():
         # Scheduled collection uses service provenance, never a forged group role.
         task = {"group_id": group}
         data = registry.read_essence(task, {})
-        available = [row for row in data["messages"] if exporter.message_id(row) not in data["missing"]]
+        available = [
+            row for row in data["messages"] if exporter.message_id(row) not in data["missing"]
+        ]
         tricks.sync(group, available)
     tricks.reindex()
 
@@ -210,6 +300,7 @@ def _get_style_memory():
         if _style_memory_instance is None:
             from .embedding import build_embedder
             from .style_memory import StyleMemory
+
             _style_memory_instance = StyleMemory(db_path, build_embedder())
         return _style_memory_instance
 
@@ -313,7 +404,14 @@ def health() -> dict[str, Any]:
         "observation_mode": "false",
         "model": os.environ.get("QQBOT_MODEL", "deepseek-flash"),
         "judge_model": os.environ.get("QQBOT_JUDGE_MODEL", "deepseek-flash"),
-        "capabilities": _capabilities,
+        "capabilities": _capabilities
+        or {
+            model: event_store.get_state("capabilities:" + model, {})
+            for model in {
+                os.environ.get("QQBOT_MODEL", "deepseek-flash"),
+                os.environ.get("QQBOT_JUDGE_MODEL", "deepseek-flash"),
+            }
+        },
     }
 
 
@@ -332,7 +430,9 @@ def event_authorized(body: bytes, signature: str, authorization: str, expected: 
         digest = hmac.new(expected.encode("utf-8"), body, hashlib.sha1).hexdigest()
         return hmac.compare_digest(signature[5:].strip().lower(), digest)
     supplied = authorization.removeprefix("Bearer ").strip()
-    return bool(supplied) and hmac.compare_digest(supplied.encode("utf-8"), expected.encode("utf-8"))
+    return bool(supplied) and hmac.compare_digest(
+        supplied.encode("utf-8"), expected.encode("utf-8")
+    )
 
 
 @app.post("/api/onebot/event")
@@ -360,20 +460,35 @@ def handle_event(event: dict[str, Any]) -> dict[str, Any]:
     accepted = event_journal.append(event)
     if accepted:
         from .memory_model import MemoryService
-        memory_executor.submit(MemoryService(event_store).activate_candidates,
-            str(event.get("group_id", "")), "".join(s.get("data", {}).get("text", "") for s in event.get("message", []) if isinstance(s, dict) and s.get("type") == "text"))
+
+        memory_executor.submit(
+            MemoryService(event_store).activate_candidates,
+            str(event.get("group_id", "")),
+            "".join(
+                s.get("data", {}).get("text", "")
+                for s in event.get("message", [])
+                if isinstance(s, dict) and s.get("type") == "text"
+            ),
+        )
     if accepted and image_segments(event):
         # QQ image links expire within hours; copy them now, not at ingestion.
         image_executor.submit(cache_and_summarize, event)
     text = addressed_text(event)
     if accepted and str(event.get("user_id", "")) not in {"self", str(event.get("self_id", ""))}:
-        brain = get_brain(str(event.get("group_id", "")))
-        brain.event(mentioned=text is not None, question_count=1 if text is not None else 0,
-                    timestamp=float(event.get("time") or time.time()))
+        brain = get_brain(str(event.get("group_id", "")), exclude_id=event.get("message_id"))
+        brain.event(
+            mentioned=text is not None,
+            question_count=1 if text is not None else 0,
+            timestamp=float(event.get("time") or time.time()),
+        )
     if accepted and text is not None:
         sender = event.get("sender") or {}
-        task = event_store.create_task(str(event.get("group_id", "")), str(event.get("user_id", "")),
-            str(event.get("message_id") or EventJournal.event_key(event)), sender.get("nickname", ""))
+        task = event_store.create_task(
+            str(event.get("group_id", "")),
+            str(event.get("user_id", "")),
+            str(event.get("message_id") or EventJournal.event_key(event)),
+            sender.get("nickname", ""),
+        )
         executor.submit(reply_to_group, event, text, task)
     # NapCat reads this body as a "quick operation"; keep it free of keys such
     # as reply/ban/kick so nothing here is ever acted on.
@@ -391,12 +506,18 @@ def cache_and_summarize(event):
 
 def reply_to_group(event: dict[str, Any], text: str, task=None, proactive=False) -> None:
     context = ReplyContext(str(event.get("group_id", "")), str(event.get("user_id", "")), text)
-    if not proactive and (not task or task["status"] == "queued") and reply_policy.respond(context) is None:
-        if task: event_store.update_task(task["id"], "skipped", "回复冷却")
+    if (
+        not proactive
+        and (not task or task["status"] == "queued")
+        and reply_policy.respond(context) is None
+    ):
+        if task:
+            event_store.update_task(task["id"], "skipped", "回复冷却")
         return
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
     if not api_key:
-        if task: event_store.update_task(task["id"], "failed", "未配置 DeepSeek API key")
+        if task:
+            event_store.update_task(task["id"], "failed", "未配置 DeepSeek API key")
         print("群回复跳过：未配置 DEEPSEEK_API_KEY")
         return
     with _brains_lock:
@@ -414,63 +535,125 @@ def reply_to_group(event: dict[str, Any], text: str, task=None, proactive=False)
             f"群角色：{sender.get('role', 'member')}"
         )
         style_ctx = ""
-        if reply_style_k > 0:
+        style_k = int(RuntimeSettings(event_store).get("style_k"))
+        if style_k > 0:
             try:
                 sm = _get_style_memory()
                 if sm is not None:
-                    hits = sm.search(text, context.group_id, k=reply_style_k, kind="text")
+                    hits = sm.search(text, context.group_id, k=style_k, kind="text")
                     if hits:
                         lines = [h["text"] for h in hits if h.get("text")]
                         style_ctx = "\n".join(lines)
             except Exception as exc:  # noqa: BLE001
                 print(f"风格检索失败（不影响回复）：{exc}")
         trigger_id = str(event.get("message_id", EventJournal.event_key(event)))
-        task = task or event_store.create_task(context.group_id, context.user_id, trigger_id,
-            sender.get("nickname") or sender.get("card") or context.user_id)
+        task = task or event_store.create_task(
+            context.group_id,
+            context.user_id,
+            trigger_id,
+            sender.get("nickname") or sender.get("card") or context.user_id,
+        )
         if task["status"] == "sent":
             return
         model = os.environ.get("QQBOT_MODEL", "deepseek-flash")
         post = make_post(api_key)
         files = DeepSeekImageFiles(event_store, api_key)
+
         def view_images(source):
             caps = _capabilities.get(model, event_store.get_state("capabilities:" + model, {}))
             if not caps.get("images"):
                 raise RuntimeError("模型图片输入能力探测未通过")
             parts, missing = files.cached_parts(source, image_cache)
             return {"images": parts, "missing": missing}
-        registry = ToolRegistry(event_store, _onebot, image_view=view_images)
+
+        def vector_search(group, keyword):
+            memory = _get_style_memory()
+            return memory.search(keyword, group, k=10, kind="text") if memory else []
+
+        registry = ToolRegistry(
+            event_store, _onebot, image_view=view_images, vector_search=vector_search
+        )
         install_admin_tools(registry)
         install_collection_tools(registry, model_classifier(post))
-        agent = Agent(event_store, registry, post, model=model,
-            max_rounds=int(os.environ.get("QQBOT_TOOL_ROUNDS", "3")), max_tokens=int(RuntimeSettings(event_store).get("reply_max_tokens")),
-            capabilities=_capabilities.get(model, event_store.get_state("capabilities:" + model, {})),
-            use_langgraph=True)
+        agent = Agent(
+            event_store,
+            registry,
+            post,
+            model=model,
+            max_rounds=int(os.environ.get("QQBOT_TOOL_ROUNDS", "3")),
+            max_tokens=int(RuntimeSettings(event_store).get("reply_max_tokens")),
+            capabilities=_capabilities.get(
+                model, event_store.get_state("capabilities:" + model, {})
+            ),
+            use_langgraph=True,
+        )
         parts = []
         if image_segments(event):
             parts = view_images(event)["images"]
             files.summarize(event, image_cache, post, model)
         brain = get_brain(context.group_id)
         judge_model = os.environ.get("QQBOT_JUDGE_MODEL", "deepseek-flash")
-        judge = model_judge(post, model=judge_model,
-            capabilities=_capabilities.get(judge_model, event_store.get_state("capabilities:" + judge_model, {})),
-            audit=lambda result: event_store.audit(task, "judge", {}, result))
-        transcript = lambda: event_store.transcript(context.group_id, max_chars=reply_context_chars, trigger_id=trigger_id)
+        judge = model_judge(
+            post,
+            model=judge_model,
+            capabilities=_capabilities.get(
+                judge_model, event_store.get_state("capabilities:" + judge_model, {})
+            ),
+            audit=lambda result: event_store.audit(task, "judge", {}, result),
+        )
+
+        def transcript():
+            return event_store.transcript(
+                context.group_id, max_chars=reply_context_chars, trigger_id=trigger_id
+            )
+
         def generate(current, regenerate):
-            messages = prompt_messages(current,
-                style_notes=event_store.get_state("style_notes:" + context.group_id, "TODO(人工调)：风格笔记"),
-                emotions=brain.prompt_suffix(), now=time.strftime("%Y-%m-%d %H:%M:%S"),
-                instruction=sender_context + "\n相似句语气参考：\n" + style_ctx, images=parts)
+            from .memory_model import MemoryService
+
+            hints = MemoryService(event_store).preference_hints(context.group_id, text)
+            messages = prompt_messages(
+                current,
+                style_notes=event_store.get_state(
+                    "style_notes:" + context.group_id, "暂无风格笔记。"
+                ),
+                emotions=brain.prompt_suffix(),
+                now=time.strftime("%Y-%m-%d %H:%M:%S"),
+                instruction=sender_context
+                + "\n相似句语气参考：\n"
+                + style_ctx
+                + "\n偏好提示（按情境回应）：\n"
+                + "\n".join(hints),
+                images=parts,
+            )
             return agent.regenerate(task, messages) if regenerate else agent.run(task, messages)
+
         def send(answer, reply_to):
             # A crash after sending has an unknown result; do not resend automatically.
             event_store.update_task(task["id"], "sending", answer)
-            message = [{"type": "reply", "data": {"id": str(reply_to)}}, {"type": "text", "data": {"text": answer}}] if reply_to else answer
+            message = (
+                [
+                    {"type": "reply", "data": {"id": str(reply_to)}},
+                    {"type": "text", "data": {"text": answer}},
+                ]
+                if reply_to
+                else answer
+            )
             result = _onebot("send_group_msg", {"group_id": context.group_id, "message": message})
-            message_id = str(result.get("message_id")) if isinstance(result, dict) and result.get("message_id") else None
-            event_journal.append_bot_message(context.group_id, answer, message_id, reply_to=trigger_id)
+            message_id = (
+                str(result.get("message_id"))
+                if isinstance(result, dict) and result.get("message_id")
+                else None
+            )
+            event_journal.append_bot_message(
+                context.group_id, answer, message_id, reply_to=trigger_id
+            )
             event_store.update_task(task["id"], "sent", answer)
-        result = TurnCoordinator(brain, judge).respond(transcript, generate, send, mentioned=not proactive)
-        if not result["sent"]: event_store.update_task(task["id"], "skipped", result["why"])
+
+        result = TurnCoordinator(brain, judge).respond(
+            transcript, generate, send, mentioned=not proactive
+        )
+        if not result["sent"]:
+            event_store.update_task(task["id"], "skipped", result["why"])
     except Exception as exc:
         if task and event_store.task(task["id"])["status"] != "sending":
             event_store.update_task(task["id"], "failed", str(exc))
@@ -478,14 +661,22 @@ def reply_to_group(event: dict[str, Any], text: str, task=None, proactive=False)
     finally:
         with _brains_lock:
             _inflight.discard(context.group_id)
-        queued = event_store.rows("SELECT * FROM tasks WHERE group_id=? AND status='queued' ORDER BY updated LIMIT 1", (context.group_id,))
+        queued = event_store.rows(
+            "SELECT * FROM tasks WHERE group_id=? AND status='queued' ORDER BY updated LIMIT 1",
+            (context.group_id,),
+        )
         if queued:
             next_task = queued[0]
             row = event_store.message(next_task["group_id"], next_task["trigger_id"])
             if row:
                 source = json.loads(row["raw"])
-                executor.submit(reply_to_group, source, addressed_text(source) or "参与讨论", next_task,
-                                ":proactive:" in next_task["id"])
+                executor.submit(
+                    reply_to_group,
+                    source,
+                    addressed_text(source) or "参与讨论",
+                    next_task,
+                    ":proactive:" in next_task["id"],
+                )
 
 
 @app.post("/api/jobs")
@@ -508,18 +699,88 @@ def get_job(job_id: str) -> dict[str, Any]:
 
 @app.get("/api/tasks")
 def tasks(limit: int = 50) -> dict[str, Any]:
-    return {"tasks": event_store.rows("SELECT * FROM tasks ORDER BY updated DESC LIMIT ?", (max(1, min(limit, 200)),))}
+    return {
+        "tasks": event_store.rows(
+            "SELECT * FROM tasks ORDER BY updated DESC LIMIT ?", (max(1, min(limit, 200)),)
+        )
+    }
 
 
 @app.get("/api/audit")
 def audit(limit: int = 100) -> dict[str, Any]:
-    return {"audit": event_store.rows("SELECT * FROM audit ORDER BY ts DESC LIMIT ?", (max(1, min(limit, 500)),))}
+    from .admin_tools import redact
+
+    rows = event_store.rows(
+        "SELECT * FROM audit ORDER BY ts DESC LIMIT ?", (max(1, min(limit, 500)),)
+    )
+    return {"audit": json.loads(redact(json.dumps(rows, ensure_ascii=False)))}
+
+
+@app.get("/api/tasks/{task_id}")
+def task_status(task_id: str):
+    task = event_store.task(task_id)
+    if task is None:
+        raise HTTPException(404, "任务不存在")
+    return task
+
+
+@app.get("/api/memory")
+def memories(limit: int = 100):
+    return {
+        "items": event_store.rows(
+            "SELECT * FROM memory_state ORDER BY updated DESC LIMIT ?", (max(1, min(limit, 500)),)
+        )
+    }
+
+
+@app.get("/api/memory/changes")
+def memory_changes(limit: int = 100):
+    return {
+        "changes": event_store.rows(
+            "SELECT * FROM memory_changes ORDER BY ts DESC LIMIT ?", (max(1, min(limit, 500)),)
+        )
+    }
+
+
+@app.get("/api/brain")
+def brains():
+    return {
+        "groups": [
+            {
+                "group_id": row["group_id"],
+                "state": event_store.get_state("brain:" + row["group_id"], {}),
+                "history": event_store.get_state("brain_history:" + row["group_id"], []),
+            }
+            for row in event_store.rows("SELECT DISTINCT group_id FROM messages")
+        ]
+    }
+
+
+@app.get("/api/runtime")
+def runtime_overrides():
+    from .runtime import BOUNDS
+
+    settings = RuntimeSettings(event_store)
+    return {
+        "values": {name: settings.get(name) for name in BOUNDS},
+        "overrides": event_store.rows("SELECT * FROM runtime_overrides"),
+    }
+
+
+@app.get("/api/capabilities")
+def capabilities():
+    return health()["capabilities"]
 
 
 @app.get("/api/memory/forgetting")
 def forgetting() -> dict[str, Any]:
-    return {"simulated": [event_store.get_state("memory_sleep:" + row["group_id"], {})
-        for row in event_store.rows("SELECT DISTINCT group_id FROM memory_state")], "enabled": os.environ.get("QQBOT_MEMORY_FORGET_ENABLED", "0")}
+    return {
+        "simulated": [
+            event_store.get_state("memory_sleep:" + row["group_id"], {})
+            for row in event_store.rows("SELECT DISTINCT group_id FROM memory_state")
+        ],
+        "enabled": os.environ.get("QQBOT_MEMORY_FORGET_ENABLED", "0"),
+    }
 
 
 @app.get("/api/recycle-bin")
@@ -528,7 +789,15 @@ def recycle_bin() -> dict[str, Any]:
 
 
 def web_host() -> str:
-    return os.environ.get("QQBOT_WEB_HOST", "").strip() or "127.0.0.1"
+    host = os.environ.get("QQBOT_WEB_HOST", "").strip() or "127.0.0.1"
+    if host == "localhost":
+        return "127.0.0.1"
+    try:
+        if ipaddress.ip_address(host).is_loopback:
+            return host
+    except ValueError:
+        pass
+    raise ValueError("QQBOT_WEB_HOST 必须是本机回环地址")
 
 
 def web_port() -> int:
