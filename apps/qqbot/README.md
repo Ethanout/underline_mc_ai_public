@@ -134,3 +134,86 @@ python -m qqbot.style_memory --query "这段 execute 是干嘛的" --bot-only
 ## 不迁移的草稿内容
 
 `probe/`、`probe2/`、`diagnose/`、`auto-probe/` 是一次性接口探测和重复导出，不属于运行代码；完整历史导出属于私有资料，不进入 Git。
+
+---
+
+## Agent 与权限
+
+毯毯使用 LangGraph 管理工具循环，任务状态持久化到 SQLite，重启后可恢复，同一 `run_id` 的工具调用不重复执行。每次回复都是一个独立任务，绑定发起人的权限，直到任务结束。
+
+**管理员判断**只认 `.env` 的 `QQBOT_ADMIN_IDS`（逗号分隔的 QQ 号），与 OneBot 事件里的 `user_id` 比对。群主身份、群管理员角色、消息里自称管理员，一律不算。工具层在注册和执行两处都检查权限，审计写到 SQLite 的 `audit` 表。
+
+工具分两档：
+
+- **普通成员**：`search_chat`、`read_chat_around`、`read_history`、`read_quoted`、`read_forward`、`read_essence`（只读，当前群）；`search_memory`（只读，相关库和本群聊天）；`view_image`；`adjust_runtime`（白名单参数，有冷却）。
+- **管理员专属**：`remember`（写无关库，内容模糊化成软偏好）、`forget`（进回收站，只删约定不删聊天原文）、`reset_runtime`；技巧收录相关的 `web_search`、`web_read`、`read_file`、`write_file`、`run_command`。
+
+跨群读取、普通成员调写入工具，都会被拒并写审计。
+
+`QQBOT_TOOL_ROUNDS`（默认 3）限制单次任务的工具循环轮数，`QQBOT_TOOL_MAX_ITEMS` / `QQBOT_TOOL_MAX_CHARS` 限制每次工具返回的条数和字数。
+
+## 记忆与约定
+
+**记忆分库**：每群有一个相关库（MC 原版创作、数据包、编程方向的内容，长期保存）和一个无关库（暂时分不清的内容先放这里）。两库都用 ChromaDB 存向量，和风格记忆的库分开。
+
+**约定的读写路径**：
+- 管理员通过 `remember` 写入无关库时，内容会被模糊化成软偏好，例如「伊桑说他说摸摸的时候想看到 ww，看心情接」，不保留完整原文。
+- 约定不作为 `search_memory` 的检索结果——普通成员触发的任务里查不到无关库。
+- 但每次生成回复前，`MemoryService.preference_hints()` 会把激活度高的软偏好注入 prompt 末尾，毯毯照样能看心情遵守。
+- 只有当前 `QQBOT_ADMIN_IDS` 名单里的人写的才算约定，群友说「以后你要……」只是聊天内容。
+
+**遗忘模拟**：`QQBOT_MEMORY_FORGET_ENABLED=0` 时只模拟，结果在 `/api/memory/forgetting` 可见，不删数据。设为 1 后实际遗忘的内容先进 `/api/recycle-bin`。
+
+## 技巧收录
+
+收录入口有两个：一是精华同步（每 `QQBOT_ESSENCE_SYNC_MINUTES` 分钟自动跑，也可以 @ 毯毯手动触发）；二是管理员指定历史范围或合并转发直接收录。收录前模型先判断内容是否是数据包技术资料（技巧、教程、工具链接、失败经验等），普通聊天不收。
+
+条目写成 Markdown，存在 `QQBOT_TRICKS_DIR`（默认 `runtime/private/qq_tricks/<群号>/`）。每条包含：标题、用途、适用版本、代码、限制、作者、原消息来源。不知道的字段写「未知」，并注明「AI 整理、未验证」。文件改动后自动重建索引。
+
+重复收录时合并来源，结论矛盾时两边都保留，不强行裁判。群库与外部知识库分开。
+
+压缩包内容有路径穿越检查和大小限制；视频只保存来源链接，不尝试解析正文。
+
+## 仿生记忆参数
+
+这是一套可解释的工程近似，不是测量人类记忆的实验结果。
+
+遗忘公式：`R(t) = (1 + t/S)^(-d)`，`S` 是强度（秒），`d` 是衰减指数，`t` 是距上次实际使用的时长。`R` 只是模型内部的保留分数，门槛和各参数都可以按群调。
+
+以下参数可在 `.env` 里调整：
+
+| 变量 | 默认值 | 含义 |
+|---|---|---|
+| `QQBOT_MEMORY_INITIAL_STRENGTH` | 86400 | 新记忆的初始强度（秒） |
+| `QQBOT_MEMORY_DECAY` | 0.5 | 遗忘衰减指数 |
+| `QQBOT_MEMORY_RETRIEVAL_THRESHOLD` | 0.1 | 低于此 R 值视为可遗忘 |
+| `QQBOT_MEMORY_ACTIVATION_HALF_LIFE` | 3600 | 短期激活度的半衰期（秒） |
+| `QQBOT_MEMORY_HIT_GAIN` | 0.15 | 检索命中对激活度的提升 |
+| `QQBOT_MEMORY_REINFORCEMENT_GAIN` | 3600 | 实际使用一次的强化量（秒） |
+| `QQBOT_MEMORY_SPACING_SCALE` | 86400 | 间隔效应参考时长：使用间隔越接近此值，强化效果越好 |
+| `QQBOT_MEMORY_REPEAT_WINDOW` | 600 | 短窗口内重复命中不额外强化的时间范围（秒） |
+| `QQBOT_MEMORY_REPEAT_PENALTY` | 0.5 | 短窗口内重复命中的强化折扣 |
+
+检索命中只提高短期激活度；只有被毯毯实际引用使用才强化长期强度 `S`。刷屏刷不出永久记忆。
+
+睡眠整理（每 `QQBOT_MEMORY_SLEEP_MINUTES` 分钟后台跑一次）：先压缩低激活记忆，再合并语义相近的短记忆（保留各自来源，剩余遗忘时间取平均），最后标记可以实际遗忘的内容。
+
+## 主动发言与情绪
+
+**主动发言**默认关闭。在 `.env` 里填 `QQBOT_PROACTIVE_GROUPS=100000001`（你的群号）才启用。每次主动发言至少间隔 `QQBOT_PROACTIVE_MIN_GAP` 秒（默认 120），受情绪影响在 0.5–2 倍之间缩放；每小时不超过 `QQBOT_PROACTIVE_MAX_PER_HOUR` 次（默认 6）。@ 回复沿用原有冷却，不受此限制。
+
+**活跃节律**：后台按「周几 × 小时」168 格统计群消息量，带指数时间衰减，@ 毯毯的消息额外加权。每 20 秒 tick 一次，当前格活跃度越高、最近消息越密、精力越足，这次 tick「拿起手机」的概率越大。拿起后随机活跃 5–20 分钟。状态持久化到 SQLite，重启后自动恢复。
+
+**情绪向量**（6 维，各有基线，随时间回归基线，初始值均为 0.5）：
+
+- 兴奋、心情、兴趣、精力、烦躁、亲近
+- 被 @ 时兴趣上升；被连续提问时烦躁上升、精力下降；判断模型每次给出 `emotion_delta`，裁剪后叠加。
+- 数值直接写进 prompt 末尾，毯毯知道自己现在的状态。
+
+**判断模型**（`QQBOT_JUDGE_MODEL`，默认 `deepseek-flash`，思考深度 `QQBOT_JUDGE_REASONING_EFFORT`，默认 `medium`）：
+- 去抖：约 8 秒没有新消息，或者 8 秒内攒满 5 条，触发一次判断。
+- 输出 JSON：`{speak, finished, wait_seconds, why, reply_to?, emotion_delta, stay}`。`finished=false` 就等 `wait_seconds` 秒再看一次，总等待上限 20 秒。
+- 发送前如果又来了新消息：@ 回复用新转录稿重新生成（最多一次）；主动插话直接放弃。
+- 返回坏 JSON 时按「不说」处理，不报错、不重试。
+
+基线和其他 brain 参数（`QQBOT_BASELINE_*`、`QQBOT_JUDGE_THRESHOLD`、`QQBOT_ACTIVE_MIN/MAX_SECONDS` 等）见 `.env.example` 注释。管理界面 `/api/brain` 可以看当前情绪数值和活跃画像，`adjust_runtime` 可以在白名单范围内微调。
