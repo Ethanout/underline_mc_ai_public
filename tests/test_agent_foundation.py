@@ -18,7 +18,7 @@ from qqbot.agent import Agent, prompt_messages
 from qqbot.deepseek_files import DeepSeekImageFiles, clamp_ttl, image_part
 from qqbot.events import EventJournal
 from qqbot.images import ImageCache, image_segments
-from qqbot.reply import probe_capabilities, thinking_fields
+from qqbot.reply import probe_capabilities, thinking_fields, token_budget
 from qqbot.store import Store
 from qqbot.style_memory import StyleMemory, ingest_journal
 from qqbot.tools import ToolRegistry
@@ -189,7 +189,7 @@ class FoundationTests(unittest.TestCase):
         self.assertNotIn("tools", requests[-1])
         self.assertEqual(requests[0]["model"], "deepseek-flash")
         self.assertEqual(requests[0]["thinking"], {"type": "enabled"})
-        self.assertEqual(requests[0]["reasoning_effort"], "medium")
+        self.assertEqual(requests[0]["reasoning_effort"], "low")
         # DeepSeek wants reasoning_content back in its own field during a tool
         # loop; it must never leak into assistant content or the reply.
         assistant = [m for m in requests[-1]["messages"] if m.get("role") == "assistant"]
@@ -210,10 +210,30 @@ class FoundationTests(unittest.TestCase):
             return {"choices": [{"finish_reason": "length", "message": {"reasoning_content": "x"}}]}
 
         agent = Agent(self.store, self.registry, post, effort="none", use_langgraph=False)
-        with self.assertRaisesRegex(RuntimeError, "思考过程用完"):
+        with self.assertRaisesRegex(RuntimeError, "QQBOT_THINKING_BUDGET"):
             agent.run(self.store.create_task("g", "member", "77"), prompt_messages("转录"))
         self.assertNotIn("reasoning_effort", requests[0])
         self.assertEqual(requests[0]["thinking"], {"type": "disabled"})
+        # Without thinking the answer budget is used as-is.
+        self.assertEqual(requests[0]["max_tokens"], 220)
+
+    def test_thinking_budget_is_added_on_top_of_answer_length(self):
+        with patch.dict(os.environ, {"QQBOT_THINKING_BUDGET": "3000"}):
+            self.assertEqual(token_budget(220, "low"), 3220)
+            self.assertEqual(token_budget(220, "none"), 220)
+        with patch.dict(os.environ, {"QQBOT_THINKING_BUDGET": "bad"}):
+            self.assertEqual(token_budget(100, "low"), 4100)
+        requests = []
+
+        def post(payload):
+            requests.append(payload)
+            return {"choices": [{"message": {"content": "好"}}]}
+
+        with patch.dict(os.environ, {"QQBOT_THINKING_BUDGET": "4000"}):
+            Agent(self.store, self.registry, post, effort="low").run(
+                self.store.create_task("g", "member", "78"), prompt_messages("转录")
+            )
+        self.assertEqual(requests[0]["max_tokens"], 4220)
 
     def test_prefix_and_capability_failures(self):
         a = prompt_messages("一", "风格", "精力0.2", "昨天")

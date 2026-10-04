@@ -7,7 +7,7 @@ import os
 import urllib.request
 
 from .prompts import AGENT_SYSTEM_PROMPT
-from .reply import empty_reason, thinking_fields
+from .reply import empty_reason, thinking_fields, token_budget
 from .store import dumps
 
 EMOTION_RULES = (
@@ -60,7 +60,7 @@ class Agent:
     ):
         self.store, self.registry, self.post = store, registry, post
         self.model = model or os.environ.get("QQBOT_MODEL", "deepseek-flash")
-        self.effort = effort or os.environ.get("QQBOT_REASONING_EFFORT", "medium")
+        self.effort = effort or os.environ.get("QQBOT_REASONING_EFFORT", "low")
         self.max_rounds, self.max_tokens = max_rounds, max_tokens
         self.capabilities = capabilities
         self.use_langgraph = use_langgraph
@@ -72,7 +72,11 @@ class Agent:
             raise RuntimeError(f"模型不支持{labels[feature]}：{detail}")
 
     def _request(self, task, messages, schemas):
-        payload = {"model": self.model, "max_tokens": self.max_tokens, "messages": messages}
+        payload = {
+            "model": self.model,
+            "max_tokens": token_budget(self.max_tokens, self.effort),
+            "messages": messages,
+        }
         if schemas:
             self.require("tools")
             payload["tools"] = schemas

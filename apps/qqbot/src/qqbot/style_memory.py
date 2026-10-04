@@ -527,12 +527,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         from .store import Store
         from .style_notes import refresh_notes
 
-        parser = argparse.ArgumentParser(description="更新群聊节奏笔记")
+        parser = argparse.ArgumentParser(description="更新群聊风格笔记")
         parser.add_argument("--group", required=True)
+        parser.add_argument("--no-model", action="store_true", help="只统计节奏，不调用模型")
         args = parser.parse_args(argv[1:])
-        store = Store()
+        _force_utf8_stdout()
+        key = os.environ.get("DEEPSEEK_API_KEY", "")
+        post = None
+        if key and not args.no_model:
+            from .agent import make_post
+
+            post = make_post(key, timeout=120)
+        store = Store(os.environ.get("QQBOT_DB", "runtime/private/qqbot.db"))
         try:
-            print(refresh_notes(store, args.group))
+            print(refresh_notes(store, args.group, post))
+            error = store.get_state("style_notes_error:" + args.group)
+            if error:
+                print(f"（模型笔记没用上：{error}）")
         finally:
             store.close()
         return 0

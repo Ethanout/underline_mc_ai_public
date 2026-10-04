@@ -12,7 +12,7 @@ import uuid
 from pathlib import Path
 
 from .images import image_segments, sniff_image
-from .reply import thinking_fields
+from .reply import thinking_fields, token_budget
 from .store import Store
 
 MIN_TTL = 3600
@@ -91,9 +91,10 @@ class DeepSeekImageFiles:
                 digest = hashlib.sha256(path.read_bytes()).hexdigest()
                 summary = self.store.get_state(f"image_summary:{digest}")
                 if summary is None:
+                    effort = os.environ.get("QQBOT_REASONING_EFFORT", "low")
                     payload = {
                         "model": model,
-                        "max_tokens": 100,
+                        "max_tokens": token_budget(100, effort),
                         "messages": [
                             {
                                 "role": "user",
@@ -104,15 +105,18 @@ class DeepSeekImageFiles:
                             }
                         ],
                     }
-                    payload.update(
-                        thinking_fields(os.environ.get("QQBOT_REASONING_EFFORT", "medium"))
-                    )
+                    payload.update(thinking_fields(effort))
                     try:
                         data = completion_post(payload)
-                        summary = str(data["choices"][0]["message"].get("content") or "摘要为空")
+                        summary = str(data["choices"][0]["message"].get("content") or "").strip()
                     except Exception:
+                        summary = ""
+                    if summary:
+                        self.store.set_state(f"image_summary:{digest}", summary)
+                    else:
+                        # Not cached: a transient failure (or a budget eaten by
+                        # reasoning) must not pin this picture to "摘要失败".
                         summary = "摘要失败"
-                    self.store.set_state(f"image_summary:{digest}", summary)
                 summaries.append(summary)
             row = self.store.message(
                 str(event.get("group_id", "")), str(event.get("message_id", ""))

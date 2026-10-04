@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from .reply import thinking_fields
+from .reply import thinking_fields, token_budget
 
 EMOTIONS = ("兴奋", "心情", "兴趣", "精力", "烦躁", "亲近")
 BASELINE_NAMES = dict(
@@ -39,6 +39,29 @@ class BrainParameters:
     proactive_max_per_hour: int = 6
     proactive_groups: tuple = ()
     judge_threshold: float = 0.5
+
+
+JUDGE_PROMPT = """你是毯毯（群里的一只白猫，管数据库）的「要不要开口」判断器。你只做判断，不写回复。
+输入是本群最近的聊天记录，每行有时间、消息 id、说话人；>> 标着这次需要关注的那条。
+
+先判断说话的人说完没有：
+- 同一个人几秒内连发、最后一句像没说完（半句话、刚说"等下""我发个图""还有"），finished=false，wait_seconds 给 3 到 15。
+- 别人之间正在快速一来一回，也先等等。
+- 说完了 finished=true，wait_seconds=0。
+
+再判断要不要说（speak）：
+- 被 @ 了，并且对方说完了：speak=true。
+- 没被 @：只有能真的加点东西才说，比如知道答案而还没人答对、有不同看法、能接住一个梗、话题正好是毯毯熟的（数据包、MC、编程、伊桑）。
+- 这些情况不说：只能附和"对""确实"；已经有人答对了；两个人在私聊式对话；话题和毯毯无关又接不上；刚说过话、再说就刷屏了。
+- 拿不准就不说。
+
+reply_to：要接的那条消息 id，没有就 null。
+emotion_delta：这段聊天让毯毯的情绪怎么变，键只能用 兴奋、心情、兴趣、精力、烦躁、亲近，每个值在 -0.2 到 0.2，没变化就给 {}。被夸心情升，被连着考烦躁升，聊到喜欢的话题兴趣升。
+stay：还想继续看群就 extend，无所谓 keep，想放下手机 leave。
+why：一句中文说明理由。
+
+只输出一个 JSON 对象，例如：
+{"speak": false, "finished": true, "wait_seconds": 0, "why": "已经有人答对了", "reply_to": null, "emotion_delta": {"兴趣": 0.05}, "stay": "keep"}"""
 
 
 def parse_judgment(raw):
@@ -329,14 +352,15 @@ class TurnCoordinator:
 def model_judge(post, model=None, effort=None, audit=None, capabilities=None):
     def judge(transcript, mentioned):
         selected = model or os.environ.get("QQBOT_JUDGE_MODEL", "deepseek-flash")
-        thinking = effort or os.environ.get("QQBOT_JUDGE_REASONING_EFFORT", "medium")
+        thinking = effort or os.environ.get("QQBOT_JUDGE_REASONING_EFFORT", "low")
         if thinking != "none" and capabilities is not None and not capabilities.get("thinking"):
             raise RuntimeError("判断模型不支持思考参数")
-        # TODO(人工调): tune participation criteria and examples with the group.
-        instruction = "判断能否参与讨论、发言者是否说完。纯附和或已有正确回答时不说。输出 JSON，字段 speak、finished、wait_seconds、why、reply_to、emotion_delta（六维中文键）、stay（extend/keep/leave）。"
+        # First draft from the plan's criteria; check real decisions in
+        # /api/audit (judge rows carry "why") before tightening it.
+        instruction = JUDGE_PROMPT
         payload = {
             "model": selected,
-            "max_tokens": 300,
+            "max_tokens": token_budget(300, thinking),
             "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": instruction},

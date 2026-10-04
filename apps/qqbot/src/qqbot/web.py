@@ -268,8 +268,10 @@ def sleep_memory():
 def refresh_style_notes():
     from .style_notes import refresh_notes
 
+    key = os.environ.get("DEEPSEEK_API_KEY", "")
+    post = make_post(key) if key else None
     for row in event_store.rows("SELECT DISTINCT group_id FROM messages"):
-        refresh_notes(event_store, row["group_id"])
+        refresh_notes(event_store, row["group_id"], post)
 
 
 def sync_essence():

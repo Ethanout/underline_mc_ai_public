@@ -139,7 +139,28 @@ python -m qqbot.style_memory --query "这段 execute 是干嘛的" --bot-only
 
 ## Agent 与权限
 
-毯毯使用 LangGraph 管理工具循环，任务状态持久化到 SQLite，重启后可恢复，同一 `run_id` 的工具调用不重复执行。每次回复都是一个独立任务，绑定发起人的权限，直到任务结束。
+工具循环本身是一个简单的 while 循环，状态在每一轮都写进 SQLite，重启后可以恢复，同一 `run_id` 的工具调用不会重复执行。装了可选依赖组 `agent`（`pip install -e "apps/qqbot[agent]"`）后，外面再套一层 LangGraph checkpointer。不装也能正常工作，目前没装。每次回复都是一个独立任务，绑定发起人的权限，直到任务结束。
+
+## 模型与思考
+
+回复、判断、技巧分类、图片摘要、风格笔记都走 DeepSeek 官方接口，默认模型 `deepseek-flash`（`QQBOT_MODEL` / `QQBOT_JUDGE_MODEL`）。
+
+- 思考深度 `QQBOT_REASONING_EFFORT` / `QQBOT_JUDGE_REASONING_EFFORT` 默认 `low`，原样传给接口。官方档位是 `low` / `high` / `max`，`medium` 按 `high` 算。`none` 会发 `thinking: disabled` 关掉思考，因为接口默认开着思考，不发这个字段关不掉。
+- **max_tokens 包含思考**（2026-10 实测）：回复长度 220 时，一道小计算题的思考就把额度用完了，正文为空。所以开着思考时，实际发出去的 `max_tokens` 是回复长度加上 `QQBOT_THINKING_BUDGET`（默认 4000）。思考用的 token 也计费。正文为空时会报「思考过程把 token 用完了」，不会发空消息。
+- 工具循环里，模型的 `reasoning_content` 放在 assistant 消息自己的字段里原样回传（接口要求，否则报 400），不并进正文，不发到群里，审计只记长度。
+- 启动时探测工具调用、图片输入、思考参数是否可用，结果见 `/api/health` 和 `/api/capabilities`。用到不支持的能力会报中文错误，不会悄悄降级。
+
+## 风格笔记
+
+后台每 `QQBOT_STYLE_NOTES_HOURS` 小时（默认 24）用判断模型更新一次每个群的风格笔记，放进回复 prompt 里相对不变的那一段。笔记只写说话习惯：常用词、梗、句长、标点和表情、接话方式。发给模型的群聊不带名字，也不带毯毯自己的话。
+
+模型写出来的笔记还要过一道代码检查：和任何原句有连续 12 个字相同，或者出现了某个群友的昵称、名片、QQ 号，就丢掉不用，只保留「新增几条、中位句长」的统计，原因写进 `style_notes_error:<群号>`。
+
+手动更新一次：
+
+```bash
+PYTHONPATH=apps/qqbot/src python -m qqbot.style_memory notes --group 100000001
+```
 
 **管理员判断**只认 `.env` 的 `QQBOT_ADMIN_IDS`（逗号分隔的 QQ 号），与 OneBot 事件里的 `user_id` 比对。群主身份、群管理员角色、消息里自称管理员，一律不算。工具层在注册和执行两处都检查权限，审计写到 SQLite 的 `audit` 表。
 
@@ -210,7 +231,7 @@ python -m qqbot.style_memory --query "这段 execute 是干嘛的" --bot-only
 - 被 @ 时兴趣上升；被连续提问时烦躁上升、精力下降；判断模型每次给出 `emotion_delta`，裁剪后叠加。
 - 数值直接写进 prompt 末尾，毯毯知道自己现在的状态。
 
-**判断模型**（`QQBOT_JUDGE_MODEL`，默认 `deepseek-flash`，思考深度 `QQBOT_JUDGE_REASONING_EFFORT`，默认 `medium`）：
+**判断模型**（`QQBOT_JUDGE_MODEL`，默认 `deepseek-flash`，思考深度 `QQBOT_JUDGE_REASONING_EFFORT`，默认 `low`）：
 - 去抖：约 8 秒没有新消息，或者 8 秒内攒满 5 条，触发一次判断。
 - 输出 JSON：`{speak, finished, wait_seconds, why, reply_to?, emotion_delta, stay}`。`finished=false` 就等 `wait_seconds` 秒再看一次，总等待上限 20 秒。
 - 发送前如果又来了新消息：@ 回复用新转录稿重新生成（最多一次）；主动插话直接放弃。
