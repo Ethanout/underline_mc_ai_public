@@ -1,4 +1,4 @@
-"""Pluggable text embedding backends for the QQ style memory.
+"""Pluggable embedding backends for the QQ style memory.
 
 Importing this module loads no model and opens no socket: the QQ bot keeps
 running on the CPU-only base dependencies.  A backend is only built when
@@ -18,13 +18,23 @@ stays on ``bge-m3`` and runs on the **CPU** so the GPU stays free.
 
 The two models write different vector spaces (4096 vs 1024 dimensions), so a
 store built with one cannot be queried with the other; wipe it when switching.
+
+Images are an optional capability, not part of :class:`Embedder`: only a backend
+with ``encode_images`` can take them, and :func:`supports_images` is how callers
+ask.  ``bge-m3`` is text-only, so the local backend simply does not have it.  On
+the api path the image vectors land in the same space as the text ones, which
+is what lets a sentence retrieve a picture.  Each image is sent on its own
+rather than fused with its caption: a fused ``{"text", "image"}`` input came out
+almost entirely text (cosine 0.89 to the caption alone, 0.41 to the image), so
+it would duplicate the text entry and lose the picture.
 """
 from __future__ import annotations
 
 import json
 import os
 import urllib.request
-from typing import Protocol, Sequence, runtime_checkable
+from pathlib import Path
+from typing import Any, Protocol, Sequence, runtime_checkable
 
 
 DEFAULT_LOCAL_MODEL = "BAAI/bge-m3"
@@ -40,6 +50,11 @@ class Embedder(Protocol):
 
     def encode(self, texts: Sequence[str]) -> list[list[float]]:
         """Return one vector per input string, in the same order."""
+
+
+def supports_images(embedder: object) -> bool:
+    """True when the backend can embed images into its text space."""
+    return callable(getattr(embedder, "encode_images", None))
 
 
 class LocalEmbedder:
@@ -79,6 +94,7 @@ class ApiEmbedder:
         api_key: str = "",
         model: str = DEFAULT_API_MODEL,
         batch_size: int = 32,
+        image_batch_size: int = 8,
         timeout: float = 60.0,
     ) -> None:
         if not api_key:
@@ -88,6 +104,9 @@ class ApiEmbedder:
         self.api_key = api_key
         self.model = model
         self.batch_size = batch_size
+        # Images go as base64 inside the JSON body; a smaller batch keeps one
+        # request from carrying tens of megabytes.
+        self.image_batch_size = image_batch_size
         self.timeout = timeout
 
     def encode(self, texts: Sequence[str]) -> list[list[float]]:
@@ -96,8 +115,21 @@ class ApiEmbedder:
             vectors.extend(self._request_batch(list(texts[start : start + self.batch_size])))
         return vectors
 
+    def encode_images(self, paths: Sequence[str | Path]) -> list[list[float]]:
+        """Embed local image files, one vector each, in the text vector space."""
+        from .images import data_uri
+
+        vectors: list[list[float]] = []
+        for start in range(0, len(paths), self.image_batch_size):
+            chunk = paths[start : start + self.image_batch_size]
+            vectors.extend(self._post([{"image": data_uri(path)} for path in chunk]))
+        return vectors
+
     def _request_batch(self, texts: list[str]) -> list[list[float]]:
-        payload = json.dumps({"model": self.model, "input": texts}, ensure_ascii=False).encode("utf-8")
+        return self._post(texts)
+
+    def _post(self, inputs: list[Any]) -> list[list[float]]:
+        payload = json.dumps({"model": self.model, "input": inputs}, ensure_ascii=False).encode("utf-8")
         request = urllib.request.Request(
             f"{self.base_url}/embeddings",
             data=payload,

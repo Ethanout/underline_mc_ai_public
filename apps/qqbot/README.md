@@ -59,9 +59,23 @@ OneBot HTTP API -> essence_exporter.py -> messages.json + media/
 
 ```text
 runtime/private/qq_events.jsonl
-  -> collect_utterances()   只留文字，认出发言人，认出毯毯自己的话，还原引用的原文
+  -> collect_utterances()   文字：认出发言人，认出毯毯自己的话，还原引用的原文
+  -> collect_images()       图片：每张一条，同一条消息里的文字当说明
   -> Embedder.encode()      默认走硅基流动的 Qwen3-VL-Embedding-8B；也可切到本机 bge-m3
   -> ChromaDB               每个群一个 collection，按 event_key 去重，重复跑不会写重
+```
+
+**图片**
+
+图片和文字进同一个库、同一个向量空间，所以拿一句话能检索出图片，反过来也行。每张图单独一条（id 是 `<event_key>#img<n>`），只用图片本身算向量；把文字和图片合成一个输入试过，出来的向量几乎全是文字（和纯文字相似度 0.89，和图片只有 0.41），等于丢了图片。
+
+QQ 图片链接几个小时就过期，所以下载发生在 **web 收到消息的时候**：`python -m qqbot.web` 开着，群里每来一张图就在后台存进 `QQBOT_IMAGE_DIR`（默认 `runtime/private/qq_images/`，按内容去重，同一个表情包只存一份）。入库时读这份缓存；缓存里没有的会再试着下载一次，多半已经过期，跑完会报有几张拿不到。web 没开的那段时间里的图就是补不回来了。
+
+只有 api 后端的 VL 模型能收图片。`local` 后端的 `bge-m3` 只认文字，入库时会说明跳过了几张图。`--no-images` 可以这次只收文字。
+
+```bash
+python -m qqbot.style_memory --query "笑死" --kind image        # 用一句话找图
+python -m qqbot.style_memory --query-image some.png --kind text  # 用一张图找话
 ```
 
 运行（在仓库根目录下）：
@@ -78,7 +92,7 @@ PYTHONPATH=apps/qqbot/src python -m qqbot.style_memory
 
 - `--since 2026-10-04` — 只收这个时间之后的记录。
 - `--bot-since 2026-10-04` — 只对毯毯自己的话生效。修好引用记录之前的旧回复没有 `reply` 段，看不出在回什么，混进去会教坏检索。想先只用干净的语料，就给这个参数一个修复之后的时间。
-- `--stats` 只看条数，不动数据。`--group` 指定群号（库里有多个群时必须给），`--k` 是检索条数，`--bot-only` / `--human-only` 分别在毯毯自己的话和群友的话里检索。
+- `--stats` 只看条数，不动数据。`--group` 指定群号（库里有多个群时必须给），`--k` 是检索条数，`--bot-only` / `--human-only` 分别在毯毯自己的话和群友的话里检索，`--kind text` / `--kind image` 只检索文字或只检索图片。
 
 检索看看效果（这一步才是你判断 embedding 好不好的依据）：
 

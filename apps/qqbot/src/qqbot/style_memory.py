@@ -11,6 +11,12 @@ frozen anchor examples and the anti-pattern list stay outside this store, and
 nothing here decides that a line is good -- read the numbers, then look at the
 retrieved lines yourself before trusting them.
 
+Images are stored too, when the backend can embed them (see
+:func:`~qqbot.embedding.supports_images`).  Each image is its own entry with id
+``<event_key>#img<n>``, embedded from the picture alone; the text of the same
+message rides along as its caption.  A message that is only an image used to be
+dropped here, which is exactly the sticker-reply behaviour worth keeping.
+
 No model is loaded and no database is opened at import time; both happen when a
 command actually runs.
 """
@@ -25,7 +31,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Sequence
 
-from .embedding import Embedder, build_embedder
+from .embedding import Embedder, build_embedder, supports_images
+from .images import DEFAULT_IMAGE_DIR, ImageCache, ImageRef, image_segments
 
 
 MAX_TEXT_CHARS = 500
@@ -97,6 +104,7 @@ class Utterance:
 
     def metadata(self) -> dict[str, str | float | bool]:
         return {
+            "kind": "text",
             "group_id": self.group_id,
             "user_id": self.user_id,
             "speaker": self.speaker,
@@ -104,6 +112,43 @@ class Utterance:
             "is_bot": self.is_bot,
             "reply_to_id": self.reply_to_id,
             "reply_to_text": self.reply_to_text,
+        }
+
+
+@dataclass(frozen=True)
+class ImageUtterance:
+    """One image posted in a group, with the text of its message as caption."""
+
+    event_key: str
+    source_key: str
+    group_id: str
+    user_id: str
+    speaker: str
+    ts: float
+    ref: ImageRef
+    caption: str = ""
+    is_bot: bool = False
+    reply_to_id: str = ""
+
+    @property
+    def document(self) -> str:
+        return self.caption or self.ref.summary or "[图片]"
+
+    def metadata(self, path: str | Path) -> dict[str, str | float | bool]:
+        return {
+            "kind": "image",
+            "group_id": self.group_id,
+            "user_id": self.user_id,
+            "speaker": self.speaker,
+            "ts": self.ts,
+            "is_bot": self.is_bot,
+            "reply_to_id": self.reply_to_id,
+            "reply_to_text": "",
+            "source_key": self.source_key,
+            "image_path": str(path),
+            "image_file": self.ref.file,
+            "image_summary": self.ref.summary,
+            "image_sub_type": self.ref.sub_type,
         }
 
 
@@ -126,6 +171,60 @@ def read_journal(path: str | Path) -> list[dict]:
     return records
 
 
+@dataclass(frozen=True)
+class _Message:
+    event: dict
+    event_key: str
+    group_id: str
+    user_id: str
+    speaker: str
+    ts: float
+    is_bot: bool
+    reply_to_id: str
+
+
+def _accepted_messages(
+    records: list[dict],
+    since: float | None,
+    bot_since: float | None,
+) -> list[_Message]:
+    """Group messages that pass the key and time filters, speaker resolved."""
+    bot_ids = {"self"}
+    for record in records:
+        self_id = (record.get("event") or {}).get("self_id")
+        if self_id is not None:
+            bot_ids.add(str(self_id))
+
+    accepted: list[_Message] = []
+    for record in records:
+        event = record.get("event") or {}
+        if event.get("post_type") != "message" or event.get("message_type") != "group":
+            continue
+        event_key = str(record.get("event_key") or event.get("message_id") or "")
+        if not event_key:
+            continue
+        sender = event.get("sender") if isinstance(event.get("sender"), dict) else {}
+        user_id = str(event.get("user_id", ""))
+        is_bot = user_id in bot_ids or str(sender.get("role", "")) == "bot"
+        timestamp = float(event.get("time") or record.get("received_at") or 0.0)
+        cutoff = bot_since if is_bot else since
+        if cutoff is not None and timestamp < cutoff:
+            continue
+        accepted.append(
+            _Message(
+                event=event,
+                event_key=event_key,
+                group_id=str(event.get("group_id", "")),
+                user_id=user_id,
+                speaker="毯毯" if is_bot else _speaker_name(sender, user_id),
+                ts=timestamp,
+                is_bot=is_bot,
+                reply_to_id=reply_target_id(event),
+            )
+        )
+    return accepted
+
+
 def collect_utterances(
     records: Iterable[dict],
     max_chars: int = MAX_TEXT_CHARS,
@@ -140,12 +239,6 @@ def collect_utterances(
     statements with nothing to answer and teach the store the wrong shape.
     """
     records = list(records)
-    bot_ids = {"self"}
-    for record in records:
-        self_id = (record.get("event") or {}).get("self_id")
-        if self_id is not None:
-            bot_ids.add(str(self_id))
-
     texts_by_id: dict[str, str] = {}
     for record in records:
         event = record.get("event") or {}
@@ -155,39 +248,52 @@ def collect_utterances(
             texts_by_id[str(message_id)] = text
 
     utterances: list[Utterance] = []
-    for record in records:
-        event = record.get("event") or {}
-        if event.get("post_type") != "message" or event.get("message_type") != "group":
-            continue
-        text = message_text(event)
+    for message in _accepted_messages(records, since, bot_since):
+        text = message_text(message.event)
         if not text:
-            continue
-        event_key = str(record.get("event_key") or event.get("message_id") or "")
-        if not event_key:
-            continue
-        sender = event.get("sender") if isinstance(event.get("sender"), dict) else {}
-        user_id = str(event.get("user_id", ""))
-        is_bot = user_id in bot_ids or str(sender.get("role", "")) == "bot"
-        reply_id = reply_target_id(event)
-        timestamp = event.get("time") or record.get("received_at") or 0.0
-        timestamp = float(timestamp)
-        cutoff = bot_since if is_bot else since
-        if cutoff is not None and timestamp < cutoff:
             continue
         utterances.append(
             Utterance(
-                event_key=event_key,
-                group_id=str(event.get("group_id", "")),
-                user_id=user_id,
-                speaker="毯毯" if is_bot else _speaker_name(sender, user_id),
+                event_key=message.event_key,
+                group_id=message.group_id,
+                user_id=message.user_id,
+                speaker=message.speaker,
                 text=text[:max_chars],
-                ts=timestamp,
-                is_bot=is_bot,
-                reply_to_id=reply_id,
-                reply_to_text=texts_by_id.get(reply_id, ""),
+                ts=message.ts,
+                is_bot=message.is_bot,
+                reply_to_id=message.reply_to_id,
+                reply_to_text=texts_by_id.get(message.reply_to_id, ""),
             )
         )
     return utterances
+
+
+def collect_images(
+    records: Iterable[dict],
+    max_chars: int = MAX_TEXT_CHARS,
+    since: float | None = None,
+    bot_since: float | None = None,
+) -> list[ImageUtterance]:
+    """Turn journal records into one entry per image, under the same filters."""
+    images: list[ImageUtterance] = []
+    for message in _accepted_messages(list(records), since, bot_since):
+        caption = message_text(message.event)[:max_chars]
+        for ref in image_segments(message.event):
+            images.append(
+                ImageUtterance(
+                    event_key=f"{message.event_key}#img{ref.index}",
+                    source_key=message.event_key,
+                    group_id=message.group_id,
+                    user_id=message.user_id,
+                    speaker=message.speaker,
+                    ts=message.ts,
+                    ref=ref,
+                    caption=caption,
+                    is_bot=message.is_bot,
+                    reply_to_id=message.reply_to_id,
+                )
+            )
+    return images
 
 
 def collection_name(prefix: str, group_id: str) -> str:
@@ -251,6 +357,48 @@ class StyleMemory:
                 stored += len(chunk)
         return stored
 
+    def add_images(
+        self,
+        items: Sequence[tuple[ImageUtterance, Path]],
+        batch_size: int = 8,
+    ) -> tuple[int, list[tuple[ImageUtterance, str]]]:
+        """Embed and upsert ``(image, local path)`` pairs.
+
+        Returns ``(stored, rejected)``.  A failed batch is retried one image at
+        a time, so a single file the API refuses only costs itself.
+        """
+        if not supports_images(self.embedder):
+            raise ValueError(f"{self.embedder.name} 不支持图片")
+        by_group: dict[str, list[tuple[ImageUtterance, Path]]] = {}
+        for item in items:
+            by_group.setdefault(item[0].group_id, []).append(item)
+        stored = 0
+        rejected: list[tuple[ImageUtterance, str]] = []
+        for group_id, entries in by_group.items():
+            collection = self.collection(group_id)
+            for start in range(0, len(entries), batch_size):
+                chunk = entries[start : start + batch_size]
+                try:
+                    vectors = self.embedder.encode_images([path for _, path in chunk])
+                    pairs = list(zip(chunk, vectors))
+                except Exception:  # noqa: BLE001 - narrow down to the offending image
+                    pairs = []
+                    for entry in chunk:
+                        try:
+                            pairs.append((entry, self.embedder.encode_images([entry[1]])[0]))
+                        except Exception as exc:  # noqa: BLE001
+                            rejected.append((entry[0], str(exc)))
+                if not pairs:
+                    continue
+                collection.upsert(
+                    ids=[image.event_key for (image, _), _ in pairs],
+                    embeddings=[vector for _, vector in pairs],
+                    documents=[image.document for (image, _), _ in pairs],
+                    metadatas=[image.metadata(path) for (image, path), _ in pairs],
+                )
+                stored += len(pairs)
+        return stored, rejected
+
     def groups(self) -> list[str]:
         """Return the group ids that have a collection, newest-agnostic order."""
         names = []
@@ -276,13 +424,42 @@ class StyleMemory:
         group_id: str,
         k: int = 5,
         is_bot: bool | None = None,
+        kind: str | None = None,
     ) -> list[dict]:
-        """Return the k nearest stored lines, with cosine score and metadata."""
+        """Return the k nearest stored entries, with cosine score and metadata.
+
+        ``kind`` is ``"text"`` or ``"image"`` to search only one of them.  Text
+        and images share a vector space, so a sentence can find a picture.
+        """
         collection = self.collection(group_id)
         if collection.count() == 0:
             return []
-        vector = self.embedder.encode([text])[0]
-        where = {"is_bot": is_bot} if is_bot is not None else None
+        return self._query(collection, self.embedder.encode([text])[0], k, is_bot, kind)
+
+    def search_image(
+        self,
+        path: str | Path,
+        group_id: str,
+        k: int = 5,
+        is_bot: bool | None = None,
+        kind: str | None = None,
+    ) -> list[dict]:
+        """Like :meth:`search`, with a local image file as the query."""
+        if not supports_images(self.embedder):
+            raise ValueError(f"{self.embedder.name} 不支持图片")
+        collection = self.collection(group_id)
+        if collection.count() == 0:
+            return []
+        return self._query(collection, self.embedder.encode_images([path])[0], k, is_bot, kind)
+
+    @staticmethod
+    def _query(collection, vector: list[float], k: int, is_bot: bool | None, kind: str | None) -> list[dict]:
+        conditions: list[dict] = []
+        if is_bot is not None:
+            conditions.append({"is_bot": is_bot})
+        if kind is not None:
+            conditions.append({"kind": kind})
+        where = {"$and": conditions} if len(conditions) > 1 else (conditions[0] if conditions else None)
         result = collection.query(
             query_embeddings=[vector],
             n_results=min(k, collection.count()),
@@ -299,10 +476,12 @@ class StyleMemory:
                 {
                     "text": document,
                     "score": 1.0 - float(distance),
+                    "kind": metadata.get("kind", "text"),
                     "speaker": metadata.get("speaker", ""),
                     "is_bot": bool(metadata.get("is_bot", False)),
                     "ts": metadata.get("ts", 0.0),
                     "reply_to_text": metadata.get("reply_to_text", ""),
+                    "image_path": metadata.get("image_path", ""),
                 }
             )
         return hits
@@ -337,6 +516,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--k", type=int, default=5)
     parser.add_argument("--bot-only", action="store_true", help="只检索毯毯自己说过的话")
     parser.add_argument("--human-only", action="store_true", help="只检索群友说过的话")
+    parser.add_argument("--kind", default=None, choices=["text", "image"], help="只检索文字或只检索图片")
+    parser.add_argument("--query-image", default=None, help="用一张本地图片去检索")
+    parser.add_argument("--no-images", action="store_true", help="这次只收文字，不收图片")
+    parser.add_argument(
+        "--images-dir",
+        default=os.environ.get("QQBOT_IMAGE_DIR", DEFAULT_IMAGE_DIR),
+        help="群图片的本地缓存目录，web 收消息时就往这里存",
+    )
     args = parser.parse_args(argv)
 
     _force_utf8_stdout()
@@ -351,19 +538,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     # HTTP client on the api one -- and an absent or fully-filtered journal is
     # the common case when someone is still setting the thing up.  Reporting
     # "没有可写入的消息" should not cost a download first.
+    querying = bool(args.query or args.query_image)
     pending: list[Utterance] = []
-    if not args.stats and not args.query:
+    pending_images: list[ImageUtterance] = []
+    if not args.stats and not querying:
         records = read_journal(args.journal)
         pending = collect_utterances(records, since=since, bot_since=bot_since)
-        if not pending:
+        if not args.no_images:
+            pending_images = collect_images(records, since=since, bot_since=bot_since)
+        if not pending and not pending_images:
             print(f"没有可写入的消息，检查 {args.journal}")
             return 1
 
     embedder = build_embedder(backend=args.backend, model=args.model, device=args.device)
     memory = StyleMemory(args.db, embedder, prefix=args.prefix)
 
-    if pending:
+    if pending or pending_images:
         print(f"后端：{embedder.name}")
+    if pending:
         stored = memory.add(pending, batch_size=args.batch_size)
         bot_lines = [item for item in pending if item.is_bot]
         groups = sorted({item.group_id for item in pending})
@@ -373,12 +565,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         if untethered:
             print(f"  毯毯的话里 {untethered} 条没有引用段（看不出在回什么），{tethered} 条带引用")
             print("  这些多半是修好引用记录之前留下的，用 --bot-since 2026-10-04 之类的时间下限可以剔除")
+    if pending_images:
+        _ingest_images(memory, pending_images, ImageCache(args.images_dir))
 
-    if args.stats or not args.query:
+    if args.stats or not querying:
         for group_id, count in sorted(memory.stats().items()):
             print(f"  {group_id}: {count} 条")
 
-    if args.query:
+    if querying:
         group_id = args.group
         if not group_id:
             known = memory.groups()
@@ -387,17 +581,48 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 1
             group_id = known[0]
         is_bot = True if args.bot_only else (False if args.human_only else None)
-        hits = memory.search(args.query, group_id, k=args.k, is_bot=is_bot)
+        if args.query_image:
+            if not supports_images(embedder):
+                print(f"{embedder.name} 不支持图片检索")
+                return 1
+            label = args.query_image
+            hits = memory.search_image(args.query_image, group_id, k=args.k, is_bot=is_bot, kind=args.kind)
+        else:
+            label = args.query
+            hits = memory.search(args.query, group_id, k=args.k, is_bot=is_bot, kind=args.kind)
         if not hits:
             print("库里还没有可检索的记录")
             return 1
-        print(f"「{args.query}」最相近的 {len(hits)} 条：")
+        print(f"「{label}」最相近的 {len(hits)} 条：")
         for hit in hits:
             mark = "毯毯" if hit["is_bot"] else hit["speaker"]
-            print(f"  {hit['score']:.3f}  {mark}：{hit['text']}")
+            if hit["kind"] == "image":
+                print(f"  {hit['score']:.3f}  {mark}：[图片] {hit['image_path']}  {hit['text']}")
+            else:
+                print(f"  {hit['score']:.3f}  {mark}：{hit['text']}")
             if hit["reply_to_text"]:
                 print(f"         └ 回的是：{hit['reply_to_text'][:60]}")
     return 0
+
+
+def _ingest_images(memory: StyleMemory, images: Sequence[ImageUtterance], cache: ImageCache) -> None:
+    """Resolve each image to a local file, then embed what could be found."""
+    if not supports_images(memory.embedder):
+        print(f"图片 {len(images)} 张跳过：{memory.embedder.name} 不支持图片（要用 api 后端的 VL 模型）")
+        return
+    located: list[tuple[ImageUtterance, Path]] = []
+    missing = 0
+    for image in images:
+        try:
+            located.append((image, cache.fetch(image.ref)))
+        except Exception:  # noqa: BLE001 - expired links are the normal case
+            missing += 1
+    stored, rejected = memory.add_images(located) if located else (0, [])
+    print(f"图片写入 {stored} 张")
+    if missing:
+        print(f"  {missing} 张本地没缓存、链接也取不到了（QQ 图片链接会过期，web 开着时收到的才会自动缓存）")
+    if rejected:
+        print(f"  {len(rejected)} 张被接口拒收，第一条原因：{rejected[0][1][:200]}")
 
 
 if __name__ == "__main__":

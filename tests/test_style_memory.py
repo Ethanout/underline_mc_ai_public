@@ -8,6 +8,7 @@ from workspace_bootstrap import add_workspace_packages
 add_workspace_packages()
 from qqbot.style_memory import (  # noqa: E402
     StyleMemory,
+    collect_images,
     collect_utterances,
     collection_name,
     parse_since,
@@ -198,6 +199,105 @@ class StyleMemoryTests(unittest.TestCase):
         with TemporaryStyleDirectory() as directory:
             memory = StyleMemory(Path(directory) / "db", FakeEmbedder())
             self.assertEqual(memory.search("在吗", "100000001"), [])
+
+
+def image_segment(url, file=""):
+    return {"type": "image", "data": {"url": url, "file": file, "summary": ""}}
+
+
+class FakeImageEmbedder(FakeEmbedder):
+    """Embeds an image as the text of its file contents, so tests can aim at it."""
+
+    name = "fake-vl"
+
+    def __init__(self, refuse=()):
+        self.refuse = set(refuse)
+        self.image_calls = []
+
+    def encode_images(self, paths):
+        self.image_calls.append(len(paths))
+        contents = [Path(path).read_bytes()[8:].decode("utf-8") for path in paths]
+        for content in contents:
+            if content in self.refuse:
+                raise RuntimeError(f"HTTP 400: {content}")
+        return self.encode(contents)
+
+
+def png_with(text):
+    return b"\x89PNG\r\n\x1a\n" + text.encode("utf-8")
+
+
+class CollectImageTests(unittest.TestCase):
+    def test_image_only_message_becomes_an_image_entry(self):
+        records = [
+            record(1, "", extra=[image_segment("https://x/a", "A.jpg")]),
+            record(2, "这个好", extra=[
+                {"type": "text", "data": {"text": "这个好"}},
+                image_segment("https://x/b"),
+                image_segment("https://x/c"),
+            ]),
+        ]
+        self.assertEqual([item.text for item in collect_utterances(records)], ["这个好"])
+        images = collect_images(records)
+        self.assertEqual([image.event_key for image in images], ["1#img0", "2#img0", "2#img1"])
+        self.assertEqual(images[0].document, "[图片]")
+        self.assertEqual(images[1].caption, "这个好")
+        self.assertEqual(images[1].source_key, "2")
+        self.assertEqual(images[0].metadata("p.png")["kind"], "image")
+
+    def test_images_obey_the_same_time_filters(self):
+        records = [
+            record(1, "", timestamp=100, extra=[image_segment("https://x/a")]),
+            record(2, "", timestamp=900, extra=[image_segment("https://x/b")]),
+        ]
+        self.assertEqual([image.source_key for image in collect_images(records, since=500)], ["2"])
+
+
+class ImageMemoryTests(unittest.TestCase):
+    def _image(self, directory, key, content, caption=""):
+        path = Path(directory) / f"{key}.png"
+        path.write_bytes(png_with(content))
+        records = [record(key, caption, extra=[
+            {"type": "text", "data": {"text": caption}},
+            image_segment(f"https://x/{key}"),
+        ])]
+        return collect_images(records)[0], path
+
+    def test_images_and_text_share_a_collection_and_filter_by_kind(self):
+        with TemporaryStyleDirectory() as directory:
+            memory = StyleMemory(Path(directory) / "db", FakeImageEmbedder())
+            memory.add(collect_utterances([record(1, "猫猫打滚")]))
+            stored, rejected = memory.add_images([self._image(directory, 2, "猫猫打滚", caption="看图")])
+            self.assertEqual((stored, rejected), (1, []))
+            self.assertEqual(memory.stats(), {"100000001": 2})
+
+            image_hits = memory.search("猫猫打滚", "100000001", k=5, kind="image")
+            self.assertEqual(len(image_hits), 1)
+            self.assertEqual(image_hits[0]["kind"], "image")
+            self.assertEqual(image_hits[0]["text"], "看图")
+            self.assertTrue(image_hits[0]["image_path"].endswith("2.png"))
+
+            text_hits = memory.search("猫猫打滚", "100000001", k=5, kind="text", is_bot=False)
+            self.assertEqual([hit["text"] for hit in text_hits], ["猫猫打滚"])
+
+            by_image = memory.search_image(Path(directory) / "2.png", "100000001", k=1, kind="image")
+            self.assertGreater(by_image[0]["score"], 0.99)
+
+    def test_a_refused_image_does_not_sink_its_batch(self):
+        with TemporaryStyleDirectory() as directory:
+            embedder = FakeImageEmbedder(refuse={"坏图"})
+            memory = StyleMemory(Path(directory) / "db", embedder)
+            items = [self._image(directory, 1, "好图一"), self._image(directory, 2, "坏图"), self._image(directory, 3, "好图二")]
+            stored, rejected = memory.add_images(items)
+            self.assertEqual(stored, 2)
+            self.assertEqual([image.source_key for image, _ in rejected], ["2"])
+            self.assertEqual(embedder.image_calls, [3, 1, 1, 1])
+
+    def test_text_only_backend_refuses_images_clearly(self):
+        with TemporaryStyleDirectory() as directory:
+            memory = StyleMemory(Path(directory) / "db", FakeEmbedder())
+            with self.assertRaises(ValueError):
+                memory.add_images([self._image(directory, 1, "图")])
 
 
 if __name__ == "__main__":

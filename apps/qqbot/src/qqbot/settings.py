@@ -41,6 +41,7 @@ REPORTED_VARS: tuple[str, ...] = (
     "QQBOT_EVENT_TOKEN",
     "QQBOT_EVENT_LOG",
     "QQBOT_STYLE_DB",
+    "QQBOT_IMAGE_DIR",
     "QQBOT_WEB_HOST",
     "QQBOT_WEB_PORT",
 )

@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from . import essence_exporter as exporter
 from .events import EventJournal
+from .images import DEFAULT_IMAGE_DIR, ImageCache, image_segments
 from .reply import ReplyContext, ReplyPolicy, addressed_text, deepseek_reply
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -26,6 +27,9 @@ jobs_lock = threading.Lock()
 
 app = FastAPI(title="QQ Bot Exporter", version="0.1.0")
 event_journal = EventJournal(Path(os.environ.get("QQBOT_EVENT_LOG", "runtime/private/qq_events.jsonl")))
+# Own single worker: a slow image host must not hold up replies or export jobs.
+image_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="qqbot-images")
+image_cache = ImageCache(os.environ.get("QQBOT_IMAGE_DIR", DEFAULT_IMAGE_DIR))
 reply_policy = ReplyPolicy(float(os.environ.get("QQBOT_REPLY_COOLDOWN", "1")))
 reply_max_tokens = int(os.environ.get("QQBOT_REPLY_MAX_TOKENS", "220"))
 reply_context_chars = int(os.environ.get("QQBOT_REPLY_CONTEXT_CHARS", "3000"))
@@ -129,6 +133,9 @@ def receive_onebot_event(event: dict[str, Any], authorization: str | None = Head
     if expected and supplied != expected:
         raise HTTPException(401, "事件 token 无效")
     accepted = event_journal.append(event)
+    if accepted and image_segments(event):
+        # QQ image links expire within hours; copy them now, not at ingestion.
+        image_executor.submit(image_cache.fetch_event, event)
     text = addressed_text(event)
     if text is not None:
         executor.submit(reply_to_group, event, text)
