@@ -30,6 +30,9 @@ KEY_FILES: dict[str, str] = {
     "QQBOT_PLUGIN_TOKEN_FILE": "QQBOT_PLUGIN_TOKEN",
 }
 DEFAULT_PLUGIN_TOKEN_FILE = "config/api/qqbot_plugin.txt"
+# Created on first start (see _apply_napcat / _apply_plugin_token), so a missing
+# file is expected rather than an error.
+GENERATED_TOKEN_FILES = frozenset({"QQBOT_EVENT_TOKEN_FILE", "QQBOT_PLUGIN_TOKEN_FILE"})
 
 # Reported by ``qqbot-config``; values are shown as set/absent, never printed.
 REPORTED_VARS: tuple[str, ...] = (
@@ -98,6 +101,11 @@ def _apply_key_files() -> dict[str, str]:
         candidate = Path(raw_path).expanduser()
         try:
             secret = candidate.read_text(encoding="utf-8").strip()
+        except FileNotFoundError:
+            # Tokens we generate ourselves do not exist before the first run.
+            if path_var not in GENERATED_TOKEN_FILES:
+                print(f"读不了 {path_var} 指向的文件：{candidate} 不存在", file=sys.stderr)
+            continue
         except OSError as exc:
             print(f"读不了 {path_var} 指向的文件：{exc}", file=sys.stderr)
             continue

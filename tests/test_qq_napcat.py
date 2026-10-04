@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import os
 import unittest
@@ -138,6 +140,18 @@ class PluginTokenTests(unittest.TestCase):
                 os.environ["MAIBOT_DIR"] = directory
                 self.assertEqual(settings._apply_plugin_token(), {"QQBOT_PLUGIN_TOKEN": str(token_file)})
                 self.assertEqual(os.environ["QQBOT_PLUGIN_TOKEN"], token_file.read_text(encoding="utf-8").strip())
+
+    def test_missing_generated_token_file_is_not_reported_but_missing_key_is(self):
+        with TemporaryDirectory() as directory:
+            env = {
+                "QQBOT_PLUGIN_TOKEN_FILE": str(Path(directory) / "plugin.txt"),
+                "DEEPSEEK_KEY_FILE": str(Path(directory) / "deepseek.txt"),
+            }
+            err = io.StringIO()
+            with mock.patch.dict(os.environ, env, clear=True), contextlib.redirect_stderr(err):
+                self.assertEqual(settings._apply_key_files(), {})
+            self.assertNotIn("QQBOT_PLUGIN_TOKEN_FILE", err.getvalue())
+            self.assertIn("DEEPSEEK_KEY_FILE", err.getvalue())
 
 
 class EventTokenTests(unittest.TestCase):
