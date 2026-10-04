@@ -12,6 +12,7 @@ key stays in whatever file it already lives in and ``.env`` only names the path.
 A real environment variable always wins over both, so a one-off override still
 works the way it always did.
 """
+
 from __future__ import annotations
 
 import os
@@ -60,6 +61,51 @@ REPORTED_VARS: tuple[str, ...] = (
     "QQBOT_PROACTIVE_MAX_PER_HOUR",
     "QQBOT_WEB_HOST",
     "QQBOT_WEB_PORT",
+    "QQBOT_REPLY_COOLDOWN",
+    "QQBOT_REPLY_MAX_TOKENS",
+    "QQBOT_STYLE_REPLY_K",
+    "QQBOT_TOOL_MAX_ITEMS",
+    "QQBOT_TOOL_MAX_CHARS",
+    "QQBOT_TRICKS_DIR",
+    "QQBOT_ESSENCE_SYNC_MINUTES",
+    "QQBOT_MEMORY_SLEEP_MINUTES",
+    "QQBOT_MEMORY_FORGET_ENABLED",
+    "QQBOT_MEMORY_MATCH_THRESHOLD",
+    "QQBOT_STYLE_NOTES_HOURS",
+    "QQBOT_ACTIVE_MIN_SECONDS",
+    "QQBOT_ACTIVE_MAX_SECONDS",
+    "QQBOT_JUDGE_THRESHOLD",
+    "QQBOT_PROFILE_HALF_LIFE",
+    "QQBOT_EMOTION_HALF_LIFE",
+    "QQBOT_MENTION_WEIGHT",
+    "QQBOT_PICKUP_SCALE",
+    *(
+        "QQBOT_BASELINE_" + name.upper()
+        for name in ("excitement", "mood", "interest", "energy", "irritation", "closeness")
+    ),
+    *(
+        "QQBOT_MEMORY_" + name.upper()
+        for name in (
+            "initial_strength",
+            "decay",
+            "retrieval_threshold",
+            "activation_half_life",
+            "hit_gain",
+            "reinforcement_gain",
+            "spacing_scale",
+            "repeat_window",
+            "repeat_penalty",
+            "interference_rate",
+            "compression_activation",
+            "compression_min_chars",
+            "merge_similarity",
+            "merge_max_chars",
+            "forgetting_threshold",
+            "low_value_threshold",
+            "permanent_strength",
+            "permanent_min_uses",
+        )
+    ),
 )
 
 _loaded = False
@@ -147,7 +193,9 @@ def _apply_napcat() -> dict[str, str]:
         return {}
     sources: dict[str, str] = {}
     if not os.environ.get("QQBOT_EVENT_TOKEN", "").strip():
-        token_file = os.environ.get("QQBOT_EVENT_TOKEN_FILE", "").strip() or napcat.DEFAULT_EVENT_TOKEN_FILE
+        token_file = (
+            os.environ.get("QQBOT_EVENT_TOKEN_FILE", "").strip() or napcat.DEFAULT_EVENT_TOKEN_FILE
+        )
         try:
             os.environ["QQBOT_EVENT_TOKEN"] = napcat.ensure_event_token(token_file)
             sources["QQBOT_EVENT_TOKEN"] = token_file

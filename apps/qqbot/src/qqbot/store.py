@@ -1,4 +1,5 @@
 """Persist source identity and task boundaries independently of model text."""
+
 from __future__ import annotations
 
 import argparse
@@ -25,7 +26,7 @@ class Store:
         self.lock = threading.RLock()
         self.db = sqlite3.connect(self.path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
-        self.db.executescript('''
+        self.db.executescript("""
             PRAGMA journal_mode=WAL;
             CREATE TABLE IF NOT EXISTS messages (
                 id TEXT PRIMARY KEY, group_id TEXT, message_id TEXT, user_id TEXT,
@@ -53,7 +54,9 @@ class Store:
                 id TEXT PRIMARY KEY);
             CREATE TABLE IF NOT EXISTS image_files (
                 sha256 TEXT PRIMARY KEY, file_id TEXT, expires_at REAL, path TEXT);
-        ''')
+            CREATE TABLE IF NOT EXISTS memory_changes (
+                id INTEGER PRIMARY KEY, memory_id TEXT, ts REAL, action TEXT, details TEXT);
+        """)
         self.db.commit()
         columns = {row[1] for row in self.db.execute("PRAGMA table_info(messages)")}
         if "image_summary" not in columns:
@@ -75,30 +78,61 @@ class Store:
         if event.get("post_type") != "message" or event.get("message_type") != "group":
             return False
         group = str(event.get("group_id", ""))
-        mid = str(event.get("message_id") if event.get("message_id") is not None else
-                  event.get("message_seq") or hashlib.sha256(dumps(event).encode()).hexdigest())
+        mid = str(
+            event.get("message_id")
+            if event.get("message_id") is not None
+            else event.get("message_seq") or hashlib.sha256(dumps(event).encode()).hexdigest()
+        )
         segments = event.get("message", [])
         if isinstance(segments, str):
             segments = [{"type": "text", "data": {"text": segments}}]
         sender = event.get("sender") or {}
         uid = str(event.get("user_id", sender.get("user_id", "")))
-        quote = next((str(s.get("data", {}).get("id", "")) for s in segments
-                      if isinstance(s, dict) and s.get("type") == "reply"), "")
+        quote = next(
+            (
+                str(s.get("data", {}).get("id", ""))
+                for s in segments
+                if isinstance(s, dict) and s.get("type") == "reply"
+            ),
+            "",
+        )
         bot = uid == "self" or (event.get("self_id") is not None and uid == str(event["self_id"]))
-        summaries = " | ".join(str(s.get("data", {}).get("summary", "")) for s in segments
-                                if isinstance(s, dict) and s.get("type") == "image")
-        return bool(self.write("INSERT OR IGNORE INTO messages VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-            (f"{group}:{mid}", group, mid, uid, sender.get("nickname", ""),
-             sender.get("card", ""), float(event.get("time") or received_at or self.clock()),
-             quote, dumps(segments), int(bot), dumps(event), summaries)))
+        summaries = " | ".join(
+            str(s.get("data", {}).get("summary", ""))
+            for s in segments
+            if isinstance(s, dict) and s.get("type") == "image"
+        )
+        return bool(
+            self.write(
+                "INSERT OR IGNORE INTO messages VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    f"{group}:{mid}",
+                    group,
+                    mid,
+                    uid,
+                    sender.get("nickname", ""),
+                    sender.get("card", ""),
+                    float(event.get("time") or received_at or self.clock()),
+                    quote,
+                    dumps(segments),
+                    int(bot),
+                    dumps(event),
+                    summaries,
+                ),
+            )
+        )
 
     def messages(self, group_id):
-        return self.rows("SELECT * FROM messages WHERE group_id=? ORDER BY ts,id", (str(group_id),))
+        return self.rows(
+            "SELECT * FROM messages WHERE group_id=? ORDER BY ts,rowid", (str(group_id),)
+        )
 
     def message(self, group_id, message_id):
         mid = str(message_id)
         stable = mid if mid.startswith(f"{group_id}:") else f"{group_id}:{mid}"
-        rows = self.rows("SELECT * FROM messages WHERE id=? AND group_id=?", (stable, str(group_id)))
+        rows = self.rows(
+            "SELECT * FROM messages WHERE id=? AND group_id=?", (stable, str(group_id))
+        )
         return rows[0] if rows else None
 
     @staticmethod
@@ -109,9 +143,13 @@ class Store:
             if segment.get("type") == "text":
                 pieces.append(str(data.get("text", "")))
             elif segment.get("type") == "image":
-                pieces.append(f"[图片:{data.get('summary') or row.get('image_summary') or '未缓存'}]")
+                pieces.append(
+                    f"[图片:{data.get('summary') or row.get('image_summary') or '未缓存'}]"
+                )
             elif segment.get("type") == "at":
-                pieces.append("@" + str(data.get("qq", "")))
+                raw = json.loads(row.get("raw", "{}"))
+                target = str(data.get("qq", ""))
+                pieces.append("@毯毯" if target == str(raw.get("self_id")) else "@" + target)
         return "".join(pieces)
 
     def transcript(self, group_id, limit=30, max_chars=3000, trigger_id=None):
@@ -123,10 +161,16 @@ class Store:
             quote = ""
             if row["quote_id"]:
                 target = self.message(group_id, row["quote_id"])
-                quote = f" 引用#{row['quote_id']}「{self.text(target)[:20] if target else '原文缺失'}」"
+                quote = (
+                    f" 引用#{row['quote_id']}「{self.text(target)[:20] if target else '原文缺失'}」"
+                )
             mark = ">> " if str(trigger_id) in (row["id"], row["message_id"]) else ""
-            lines.append(f"{mark}{datetime.fromtimestamp(row['ts']).strftime('%H:%M:%S')} #{row['message_id']} {name}：{self.text(row)}{quote}".replace("\n", " "))
-        selected = lines[-max(0, limit):] if limit > 0 else []
+            lines.append(
+                f"{mark}{datetime.fromtimestamp(row['ts']).strftime('%H:%M:%S')} #{row['message_id']} {name}：{self.text(row)}{quote}".replace(
+                    "\n", " "
+                )
+            )
+        selected = lines[-max(0, limit) :] if limit > 0 else []
         while selected:
             omitted = len(lines) - len(selected)
             prefix = f"更早的 {omitted} 条未显示\n" if omitted else ""
@@ -137,8 +181,19 @@ class Store:
 
     def create_task(self, group_id, user_id, trigger_id, nickname=""):
         task_id = f"{group_id}:{trigger_id}"
-        self.write("INSERT OR IGNORE INTO tasks VALUES (?,?,?,?,?,?,?,?)",
-                   (task_id, str(group_id), str(user_id), nickname, str(trigger_id), "queued", "", self.clock()))
+        self.write(
+            "INSERT OR IGNORE INTO tasks VALUES (?,?,?,?,?,?,?,?)",
+            (
+                task_id,
+                str(group_id),
+                str(user_id),
+                nickname,
+                str(trigger_id),
+                "queued",
+                "",
+                self.clock(),
+            ),
+        )
         return self.task(task_id)
 
     def task(self, task_id):
@@ -146,11 +201,24 @@ class Store:
         return rows[0] if rows else None
 
     def update_task(self, task_id, status, result=""):
-        self.write("UPDATE tasks SET status=?,result=?,updated=? WHERE id=?", (status, result, self.clock(), task_id))
+        self.write(
+            "UPDATE tasks SET status=?,result=?,updated=? WHERE id=?",
+            (status, result, self.clock(), task_id),
+        )
 
     def audit(self, task, tool, args, result, denied=False):
-        self.write("INSERT INTO audit(task_id,user_id,ts,tool,args,result,denied) VALUES(?,?,?,?,?,?,?)",
-                   (task["id"], task["user_id"], self.clock(), tool, dumps(args), dumps(result), int(denied)))
+        self.write(
+            "INSERT INTO audit(task_id,user_id,ts,tool,args,result,denied) VALUES(?,?,?,?,?,?,?)",
+            (
+                task["id"],
+                task["user_id"],
+                self.clock(),
+                tool,
+                dumps(args),
+                dumps(result),
+                int(denied),
+            ),
+        )
 
     def get_state(self, key, default=None):
         rows = self.rows("SELECT value FROM state WHERE key=?", (key,))
@@ -161,19 +229,47 @@ class Store:
 
     def restore(self, memory_id):
         with self.lock, self.db:
-            row = self.db.execute("SELECT payload FROM recycle_bin WHERE id=?", (memory_id,)).fetchone()
+            row = self.db.execute(
+                "SELECT payload FROM recycle_bin WHERE id=?", (memory_id,)
+            ).fetchone()
             if row is None:
                 raise ValueError("回收站中没有该记忆")
             item = json.loads(row[0])
-            self.db.execute("INSERT OR REPLACE INTO memory_state VALUES(?,?,?,?,?,?,?,?,?)", tuple(item[k] for k in
-                ("id", "group_id", "category", "kind", "author", "content", "sources", "state", "updated")))
+            self.db.execute(
+                "INSERT OR REPLACE INTO memory_state VALUES(?,?,?,?,?,?,?,?,?)",
+                tuple(
+                    item[k]
+                    for k in (
+                        "id",
+                        "group_id",
+                        "category",
+                        "kind",
+                        "author",
+                        "content",
+                        "sources",
+                        "state",
+                        "updated",
+                    )
+                ),
+            )
             self.db.execute("DELETE FROM recycle_bin WHERE id=?", (memory_id,))
+        self.memory_change(memory_id, "restore", {"category": item["category"]})
         return item
 
     def recycle(self, item):
         with self.lock, self.db:
-            self.db.execute("INSERT OR REPLACE INTO recycle_bin VALUES(?,?,?)", (item["id"], dumps(item), self.clock()))
+            self.db.execute(
+                "INSERT OR REPLACE INTO recycle_bin VALUES(?,?,?)",
+                (item["id"], dumps(item), self.clock()),
+            )
             self.db.execute("DELETE FROM memory_state WHERE id=?", (item["id"],))
+        self.memory_change(item["id"], "recycle", {"category": item["category"]})
+
+    def memory_change(self, memory_id, action, details):
+        self.write(
+            "INSERT INTO memory_changes(memory_id,ts,action,details) VALUES(?,?,?,?)",
+            (memory_id, self.clock(), action, dumps(details)),
+        )
 
     def import_journal(self, path):
         count = 0

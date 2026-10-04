@@ -1,4 +1,5 @@
 """Persist deterministic rhythm and emotion policies around injectable judges."""
+
 from __future__ import annotations
 
 import json
@@ -8,10 +9,14 @@ import random
 import threading
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
+from .reply import thinking_fields
 
 EMOTIONS = ("兴奋", "心情", "兴趣", "精力", "烦躁", "亲近")
-BASELINE_NAMES = dict(zip(EMOTIONS, ("excitement", "mood", "interest", "energy", "irritation", "closeness")))
+BASELINE_NAMES = dict(
+    zip(EMOTIONS, ("excitement", "mood", "interest", "energy", "irritation", "closeness"))
+)
 LOCAL_TIME = timezone(timedelta(hours=8))
 
 
@@ -24,7 +29,7 @@ class BrainParameters:
     profile_half_life: float = 30 * 86400
     emotion_half_life: float = 1800
     mention_weight: float = 3
-    pickup_scale: float = .01
+    pickup_scale: float = 0.01
     active_min: float = 300
     active_max: float = 1200
     debounce_seconds: float = 8
@@ -33,39 +38,71 @@ class BrainParameters:
     proactive_min_gap: float = 120
     proactive_max_per_hour: int = 6
     proactive_groups: tuple = ()
+    judge_threshold: float = 0.5
 
 
 def parse_judgment(raw):
-    fallback = {"speak": False, "finished": True, "wait_seconds": 0, "why": "判断结果格式无效",
-                "reply_to": None, "emotion_delta": {}, "stay": "keep", "valid": False}
+    fallback = {
+        "speak": False,
+        "finished": True,
+        "wait_seconds": 0,
+        "why": "判断结果格式无效",
+        "reply_to": None,
+        "emotion_delta": {},
+        "stay": "keep",
+        "valid": False,
+    }
     try:
         result = json.loads(raw) if isinstance(raw, str) else raw
         fields = {"speak", "finished", "wait_seconds", "why", "reply_to", "emotion_delta", "stay"}
-        if not isinstance(result, dict) or not fields <= result.keys(): return fallback
-        if type(result["speak"]) is not bool or type(result["finished"]) is not bool: return fallback
-        if not isinstance(result["why"], str) or not isinstance(result["emotion_delta"], dict): return fallback
-        if result["reply_to"] is not None and not isinstance(result["reply_to"], (str, int)): return fallback
-        if result["stay"] not in {"extend", "keep", "leave"}: return fallback
+        if not isinstance(result, dict) or not fields <= result.keys():
+            return fallback
+        if type(result["speak"]) is not bool or type(result["finished"]) is not bool:
+            return fallback
+        if not isinstance(result["why"], str) or not isinstance(result["emotion_delta"], dict):
+            return fallback
+        if result["reply_to"] is not None and not isinstance(result["reply_to"], (str, int)):
+            return fallback
+        if result["stay"] not in {"extend", "keep", "leave"}:
+            return fallback
         wait = float(result["wait_seconds"])
-        if not math.isfinite(wait): return fallback
-        delta = {key: clip(float(value), -.2, .2) for key, value in result["emotion_delta"].items() if key in EMOTIONS}
-        if not all(math.isfinite(float(value)) for value in result["emotion_delta"].values()): return fallback
+        if not math.isfinite(wait):
+            return fallback
+        delta = {
+            key: clip(float(value), -0.2, 0.2)
+            for key, value in result["emotion_delta"].items()
+            if key in EMOTIONS
+        }
+        if not all(math.isfinite(float(value)) for value in result["emotion_delta"].values()):
+            return fallback
         return {**result, "wait_seconds": clip(wait, 0, 20), "emotion_delta": delta, "valid": True}
     except (ValueError, TypeError, OverflowError):
         return fallback
 
 
 class Brain:
-    def __init__(self, store=None, group_id="", clock=time.time, rng=None, baselines=None,
-                 parameters=None, probability_fn=None):
+    def __init__(
+        self,
+        store=None,
+        group_id="",
+        clock=time.time,
+        rng=None,
+        baselines=None,
+        parameters=None,
+        probability_fn=None,
+    ):
         self.store, self.group_id, self.clock = store, str(group_id), clock
         self.rng = rng or random.Random()
         self.params = parameters or BrainParameters()
-        self.probability_fn = probability_fn or (lambda activity, rate, energy: 1 - math.exp(-self.params.pickup_scale * activity * rate * energy))
-        self.baselines = baselines or {name: .5 for name in EMOTIONS}
+        self.probability_fn = probability_fn or (
+            lambda activity, rate, energy: (
+                1 - math.exp(-self.params.pickup_scale * activity * rate * energy)
+            )
+        )
+        self.baselines = baselines or {name: 0.5 for name in EMOTIONS}
         saved = store.get_state("brain:" + self.group_id, {}) if store else {}
         self.emotions = saved.get("emotions", dict(self.baselines))
-        self.profile = saved.get("profile", [0.] * 168)
+        self.profile = saved.get("profile", [0.0] * 168)
         self.last_update = saved.get("last_update", self.clock())
         self.active_until = saved.get("active_until", 0)
         self.pending = saved.get("pending", [])
@@ -83,8 +120,28 @@ class Brain:
 
     def save(self):
         if self.store:
-            self.store.set_state("brain:" + self.group_id, {key: getattr(self, key) for key in
-                ("emotions", "profile", "last_update", "active_until", "pending", "last_message", "recent_times", "sent_times", "version", "last_judgment")})
+            self.store.set_state(
+                "brain:" + self.group_id,
+                {
+                    key: getattr(self, key)
+                    for key in (
+                        "emotions",
+                        "profile",
+                        "last_update",
+                        "active_until",
+                        "pending",
+                        "last_message",
+                        "recent_times",
+                        "sent_times",
+                        "version",
+                        "last_judgment",
+                    )
+                },
+            )
+            history = self.store.get_state("brain_history:" + self.group_id, [])
+            entry = {"at": self.clock(), "emotions": dict(self.emotions)}
+            if not history or history[-1] != entry:
+                self.store.set_state("brain_history:" + self.group_id, (history + [entry])[-1000:])
 
     def decay(self):
         now = self.clock()
@@ -103,79 +160,116 @@ class Brain:
             now = self.clock()
             timestamp = now if timestamp is None else timestamp
             self.profile[self.slot(timestamp)] += self.params.mention_weight if mentioned else 1
-            self.emotions["兴趣"] = clip(self.emotions["兴趣"] + (.12 if mentioned else 0))
-            self.emotions["心情"] = clip(self.emotions["心情"] + (.08 if praised else 0))
-            self.emotions["精力"] = clip(self.emotions["精力"] - min(.2, max(0, question_count) * .02))
+            self.emotions["兴趣"] = clip(self.emotions["兴趣"] + (0.12 if mentioned else 0))
+            self.emotions["心情"] = clip(self.emotions["心情"] + (0.08 if praised else 0))
+            self.emotions["精力"] = clip(
+                self.emotions["精力"] - min(0.2, max(0, question_count) * 0.02)
+            )
             self.pending.append(now)
             self.recent_times = [t for t in self.recent_times if now - t <= 60] + [now]
             self.last_message = now
             self.version += 1
-            if mentioned: self.pick_up()
+            if mentioned:
+                self.pick_up()
             self.save()
 
     def rebuild_profile(self, messages):
         now = self.clock()
-        self.profile = [0.] * 168
+        self.profile = [0.0] * 168
         for row in messages:
             raw = json.loads(row["raw"])
-            mentioned = any(s.get("type") == "at" and str(s.get("data", {}).get("qq")) == str(raw.get("self_id"))
-                            for s in json.loads(row["segments"]))
+            mentioned = any(
+                s.get("type") == "at"
+                and str(s.get("data", {}).get("qq")) == str(raw.get("self_id"))
+                for s in json.loads(row["segments"])
+            )
             weight = self.params.mention_weight if mentioned else 1
-            self.profile[self.slot(row["ts"])] += weight * 2 ** (-max(0, now - row["ts"]) / self.params.profile_half_life)
+            self.profile[self.slot(row["ts"])] += weight * 2 ** (
+                -max(0, now - row["ts"]) / self.params.profile_half_life
+            )
         self.last_update = now
         self.save()
 
     def pick_up(self):
         duration = self.rng.uniform(self.params.active_min, self.params.active_max)
-        mood_scale = .75 + .25 * self.emotions["心情"] + .5 * self.emotions["精力"]
+        mood_scale = 0.75 + 0.25 * self.emotions["心情"] + 0.5 * self.emotions["精力"]
         duration = clip(duration * mood_scale, self.params.active_min, self.params.active_max)
         self.active_until = max(self.active_until, self.clock() + duration)
 
     def should_pick_up(self):
         self.decay()
         recent_rate = len([t for t in self.recent_times if self.clock() - t <= 60]) / 60
-        probability = clip(self.probability_fn(self.profile[self.slot(self.clock())], recent_rate, self.emotions["精力"]))
+        probability = clip(
+            self.probability_fn(
+                self.profile[self.slot(self.clock())], recent_rate, self.emotions["精力"]
+            )
+        )
         return self.rng.random() < probability
 
     def tick(self):
         with self.lock:
             self.decay()
-            if self.clock() >= self.active_until and self.should_pick_up(): self.pick_up()
+            if self.clock() >= self.active_until and self.should_pick_up():
+                self.pick_up()
             self.save()
             return self.clock() < self.active_until
 
     def judgment_due(self):
-        if not self.pending: return False
+        if not self.pending:
+            return False
         now = self.clock()
         quiet = now - self.pending[-1] >= self.params.debounce_seconds
-        burst = len([t for t in self.pending if now - t <= self.params.debounce_seconds]) >= self.params.debounce_count
+        burst = (
+            len([t for t in self.pending if now - t <= self.params.debounce_seconds])
+            >= self.params.debounce_count
+        )
         return quiet or burst
 
     def apply_judgment(self, decision):
         self.decay()
         for key, value in decision["emotion_delta"].items():
-            self.emotions[key] = clip(self.emotions[key] + clip(value, -.2, .2))
-        if decision["stay"] == "extend": self.active_until = max(self.active_until, self.clock()) + 300
-        if decision["stay"] == "leave": self.active_until = self.clock()
+            self.emotions[key] = clip(self.emotions[key] + clip(value, -0.2, 0.2))
+        if decision["stay"] == "extend":
+            self.active_until = max(self.active_until, self.clock()) + 300
+        if decision["stay"] == "leave":
+            self.active_until = self.clock()
         self.last_judgment = {**decision, "at": self.clock()}
         self.save()
 
     def tendency(self):
-        return clip((self.emotions["兴奋"] + self.emotions["兴趣"] + self.emotions["精力"] + 1 - self.emotions["烦躁"]) / 4)
+        return clip(
+            (
+                self.emotions["兴奋"]
+                + self.emotions["兴趣"]
+                + self.emotions["精力"]
+                + 1
+                - self.emotions["烦躁"]
+            )
+            / 4
+        )
 
     def gap_scale(self):
-        return clip(2 - 1.5 * self.tendency(), .5, 2)
+        return clip(2 - 1.5 * self.tendency(), 0.5, 2)
 
     def can_proactively_speak(self):
-        if self.group_id not in self.params.proactive_groups: return False
+        if self.group_id not in self.params.proactive_groups:
+            return False
+        if self.tendency() < self.params.judge_threshold:
+            return False
         now = self.clock()
         self.sent_times = [t for t in self.sent_times if now - t < 3600]
-        if len(self.sent_times) >= self.params.proactive_max_per_hour: return False
-        if self.sent_times and now - self.sent_times[-1] < self.params.proactive_min_gap * self.gap_scale(): return False
+        if len(self.sent_times) >= self.params.proactive_max_per_hour:
+            return False
+        if (
+            self.sent_times
+            and now - self.sent_times[-1] < self.params.proactive_min_gap * self.gap_scale()
+        ):
+            return False
         return True
 
     def mark_sent(self, mentioned=False):
-        if not mentioned: self.sent_times.append(self.clock())
+        if not mentioned:
+            self.sent_times.append(self.clock())
         self.save()
 
     def prompt_suffix(self):
@@ -193,30 +287,37 @@ class TurnCoordinator:
         self.brain.apply_judgment(decision)
         while decision["valid"] and not decision["finished"]:
             remaining = self.brain.params.wait_limit - (self.brain.clock() - started)
-            if remaining <= 0: break
-            self.sleep(min(remaining, max(.1, decision["wait_seconds"])))
+            if remaining <= 0:
+                break
+            self.sleep(min(remaining, max(0.1, decision["wait_seconds"])))
             decision = parse_judgment(self.judge(transcript(), mentioned))
             self.brain.apply_judgment(decision)
         return decision
 
     def respond(self, transcript, generate, send, mentioned=False):
         with self.brain.lock:
-            if not mentioned and not self.brain.can_proactively_speak(): return {"sent": False, "why": "白名单或限速"}
+            if not mentioned and not self.brain.can_proactively_speak():
+                return {"sent": False, "why": "白名单或限速"}
         decision = self.wait_for_finished(transcript, mentioned)
         if not decision["speak"]:
             with self.brain.lock:
-                self.brain.pending = [t for t in self.brain.pending if t > self.brain.last_judgment["at"]]
+                self.brain.pending = [
+                    t for t in self.brain.pending if t > self.brain.last_judgment["at"]
+                ]
                 self.brain.save()
             return {"sent": False, "why": decision["why"]}
         version = self.brain.version
         answer = generate(transcript(), False)
         regenerated = False
         if self.brain.version != version:
-            if not mentioned: return {"sent": False, "why": "生成期间有新消息"}
+            if not mentioned:
+                return {"sent": False, "why": "生成期间有新消息"}
             answer = generate(transcript(), True)
             regenerated = True
         with self.brain.lock:
-            if not mentioned and (self.brain.version != version or not self.brain.can_proactively_speak()):
+            if not mentioned and (
+                self.brain.version != version or not self.brain.can_proactively_speak()
+            ):
                 return {"sent": False, "why": "发送前有新消息或达到限速"}
             send(answer, decision.get("reply_to"))
             self.brain.mark_sent(mentioned)
@@ -233,12 +334,19 @@ def model_judge(post, model=None, effort=None, audit=None, capabilities=None):
             raise RuntimeError("判断模型不支持思考参数")
         # TODO(人工调): tune participation criteria and examples with the group.
         instruction = "判断能否参与讨论、发言者是否说完。纯附和或已有正确回答时不说。输出 JSON，字段 speak、finished、wait_seconds、why、reply_to、emotion_delta（六维中文键）、stay（extend/keep/leave）。"
-        payload = {"model": selected, "max_tokens": 300, "reasoning_effort": thinking,
-                   "response_format": {"type": "json_object"}, "messages": [
-                       {"role": "system", "content": instruction},
-                       {"role": "user", "content": transcript + f"\n本次被@：{mentioned}"}]}
-        if thinking != "none": payload["thinking"] = {"type": "enabled"}
+        payload = {
+            "model": selected,
+            "max_tokens": 300,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": instruction},
+                {"role": "user", "content": transcript + f"\n本次被@：{mentioned}"},
+            ],
+            **thinking_fields(thinking),
+        }
         message = post(payload)["choices"][0]["message"]
-        if audit: audit({"reasoning_length": len(message.get("reasoning_content") or "")})
+        if audit:
+            audit({"reasoning_length": len(message.get("reasoning_content") or "")})
         return message.get("content", "")
+
     return judge

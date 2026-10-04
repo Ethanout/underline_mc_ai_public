@@ -20,6 +20,7 @@ dropped here, which is exactly the sticker-reply behaviour worth keeping.
 No model is loaded and no database is opened at import time; both happen when a
 command actually runs.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,13 +28,12 @@ import datetime
 import json
 import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Sequence
 
 from .embedding import Embedder, build_embedder, supports_images
 from .images import DEFAULT_IMAGE_DIR, ImageCache, ImageRef, image_segments
-
 
 MAX_TEXT_CHARS = 500
 DEFAULT_BATCH_SIZE = 64
@@ -239,13 +239,13 @@ def collect_utterances(
     statements with nothing to answer and teach the store the wrong shape.
     """
     records = list(records)
-    texts_by_id: dict[str, str] = {}
+    texts_by_id: dict[tuple[str, str], str] = {}
     for record in records:
         event = record.get("event") or {}
         message_id = event.get("message_id")
         text = message_text(event)
         if message_id is not None and text:
-            texts_by_id[str(message_id)] = text
+            texts_by_id[(str(event.get("group_id", "")), str(message_id))] = text
 
     utterances: list[Utterance] = []
     for message in _accepted_messages(records, since, bot_since):
@@ -262,7 +262,7 @@ def collect_utterances(
                 ts=message.ts,
                 is_bot=message.is_bot,
                 reply_to_id=message.reply_to_id,
-                reply_to_text=texts_by_id.get(message.reply_to_id, ""),
+                reply_to_text=texts_by_id.get((message.group_id, message.reply_to_id), ""),
             )
         )
     return utterances
@@ -337,7 +337,12 @@ class StyleMemory:
     def __exit__(self, *exc_info: object) -> None:
         self.close()
 
-    def add(self, utterances: Sequence[Utterance], batch_size: int = DEFAULT_BATCH_SIZE, skip_existing: bool = True) -> int:
+    def add(
+        self,
+        utterances: Sequence[Utterance],
+        batch_size: int = DEFAULT_BATCH_SIZE,
+        skip_existing: bool = True,
+    ) -> int:
         """Embed and upsert lines.  Re-running over the same journal is safe."""
         by_group: dict[str, list[Utterance]] = {}
         for utterance in utterances:
@@ -347,7 +352,9 @@ class StyleMemory:
             collection = self.collection(group_id)
             items = list({item.event_key: item for item in items}.values())
             if skip_existing and items:
-                existing = set(collection.get(ids=[item.event_key for item in items]).get("ids", []))
+                existing = set(
+                    collection.get(ids=[item.event_key for item in items]).get("ids", [])
+                )
                 items = [item for item in items if item.event_key not in existing]
             for start in range(0, len(items), batch_size):
                 chunk = items[start : start + batch_size]
@@ -383,7 +390,9 @@ class StyleMemory:
             collection = self.collection(group_id)
             entries = list({item[0].event_key: item for item in entries}.values())
             if skip_existing and entries:
-                existing = set(collection.get(ids=[item[0].event_key for item in entries]).get("ids", []))
+                existing = set(
+                    collection.get(ids=[item[0].event_key for item in entries]).get("ids", [])
+                )
                 entries = [item for item in entries if item[0].event_key not in existing]
             for start in range(0, len(entries), batch_size):
                 chunk = entries[start : start + batch_size]
@@ -462,13 +471,17 @@ class StyleMemory:
         return self._query(collection, self.embedder.encode_images([path])[0], k, is_bot, kind)
 
     @staticmethod
-    def _query(collection, vector: list[float], k: int, is_bot: bool | None, kind: str | None) -> list[dict]:
+    def _query(
+        collection, vector: list[float], k: int, is_bot: bool | None, kind: str | None
+    ) -> list[dict]:
         conditions: list[dict] = []
         if is_bot is not None:
             conditions.append({"is_bot": is_bot})
         if kind is not None:
             conditions.append({"kind": kind})
-        where = {"$and": conditions} if len(conditions) > 1 else (conditions[0] if conditions else None)
+        where = (
+            {"$and": conditions} if len(conditions) > 1 else (conditions[0] if conditions else None)
+        )
         result = collection.query(
             query_embeddings=[vector],
             n_results=min(k, collection.count()),
@@ -508,6 +521,21 @@ def _force_utf8_stdout() -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] == "notes":
+        from .store import Store
+        from .style_notes import refresh_notes
+
+        parser = argparse.ArgumentParser(description="更新群聊节奏笔记")
+        parser.add_argument("--group", required=True)
+        args = parser.parse_args(argv[1:])
+        store = Store()
+        try:
+            print(refresh_notes(store, args.group))
+        finally:
+            store.close()
+        return 0
     parser = argparse.ArgumentParser(description="把 QQ 群消息写进风格记忆库，并按需检索")
     parser.add_argument("--journal", default=os.environ.get("QQBOT_EVENT_LOG", DEFAULT_JOURNAL))
     parser.add_argument("--db", default=os.environ.get("QQBOT_STYLE_DB", DEFAULT_DB))
@@ -528,7 +556,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--k", type=int, default=5)
     parser.add_argument("--bot-only", action="store_true", help="只检索毯毯自己说过的话")
     parser.add_argument("--human-only", action="store_true", help="只检索群友说过的话")
-    parser.add_argument("--kind", default=None, choices=["text", "image"], help="只检索文字或只检索图片")
+    parser.add_argument(
+        "--kind", default=None, choices=["text", "image"], help="只检索文字或只检索图片"
+    )
     parser.add_argument("--query-image", default=None, help="用一张本地图片去检索")
     parser.add_argument("--no-images", action="store_true", help="这次只收文字，不收图片")
     parser.add_argument(
@@ -568,10 +598,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     if pending or pending_images:
         print(f"后端：{embedder.name}")
     if pending:
-        records_for_ingest = records if not args.no_images else [
-            {**row, "event": {**row["event"], "message": [s for s in row["event"].get("message", []) if s.get("type") != "image"]}}
-            for row in records]
-        result = ingest_journal(memory, records_for_ingest, ImageCache(args.images_dir), since, bot_since)
+        records_for_ingest = (
+            records
+            if not args.no_images
+            else [
+                {
+                    **row,
+                    "event": {
+                        **row["event"],
+                        "message": [
+                            s for s in row["event"].get("message", []) if s.get("type") != "image"
+                        ],
+                    },
+                }
+                for row in records
+            ]
+        )
+        result = ingest_journal(
+            memory, records_for_ingest, ImageCache(args.images_dir), since, bot_since
+        )
         stored = result["text"]
         bot_lines = [item for item in pending if item.is_bot]
         groups = sorted({item.group_id for item in pending})
@@ -580,7 +625,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         untethered = len(bot_lines) - tethered
         if untethered:
             print(f"  毯毯的话里 {untethered} 条没有引用段（看不出在回什么），{tethered} 条带引用")
-            print("  这些多半是修好引用记录之前留下的，用 --bot-since 2026-10-04 之类的时间下限可以剔除")
+            print(
+                "  这些多半是修好引用记录之前留下的，用 --bot-since 2026-10-04 之类的时间下限可以剔除"
+            )
     if pending_images and not pending:
         ingest_journal(memory, records, ImageCache(args.images_dir), since, bot_since)
 
@@ -593,7 +640,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not group_id:
             known = memory.groups()
             if len(known) != 1:
-                print(f"库里有 {len(known)} 个群，请用 --group 指定：{', '.join(known) or '（空）'}")
+                print(
+                    f"库里有 {len(known)} 个群，请用 --group 指定：{', '.join(known) or '（空）'}"
+                )
                 return 1
             group_id = known[0]
         is_bot = True if args.bot_only else (False if args.human_only else None)
@@ -602,7 +651,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"{embedder.name} 不支持图片检索")
                 return 1
             label = args.query_image
-            hits = memory.search_image(args.query_image, group_id, k=args.k, is_bot=is_bot, kind=args.kind)
+            hits = memory.search_image(
+                args.query_image, group_id, k=args.k, is_bot=is_bot, kind=args.kind
+            )
         else:
             label = args.query
             hits = memory.search(args.query, group_id, k=args.k, is_bot=is_bot, kind=args.kind)
@@ -621,10 +672,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-def _ingest_images(memory: StyleMemory, images: Sequence[ImageUtterance], cache: ImageCache) -> None:
+def _ingest_images(
+    memory: StyleMemory, images: Sequence[ImageUtterance], cache: ImageCache
+) -> None:
     """Resolve each image to a local file, then embed what could be found."""
     if not supports_images(memory.embedder):
-        print(f"图片 {len(images)} 张跳过：{memory.embedder.name} 不支持图片（要用 api 后端的 VL 模型）")
+        print(
+            f"图片 {len(images)} 张跳过：{memory.embedder.name} 不支持图片（要用 api 后端的 VL 模型）"
+        )
         return
     located: list[tuple[ImageUtterance, Path]] = []
     missing = 0
@@ -636,7 +691,9 @@ def _ingest_images(memory: StyleMemory, images: Sequence[ImageUtterance], cache:
     stored, rejected = memory.add_images(located) if located else (0, [])
     print(f"图片写入 {stored} 张")
     if missing:
-        print(f"  {missing} 张本地没缓存、链接也取不到了（QQ 图片链接会过期，web 开着时收到的才会自动缓存）")
+        print(
+            f"  {missing} 张本地没缓存、链接也取不到了（QQ 图片链接会过期，web 开着时收到的才会自动缓存）"
+        )
     if rejected:
         print(f"  {len(rejected)} 张被接口拒收，第一条原因：{rejected[0][1][:200]}")
 
@@ -644,7 +701,9 @@ def _ingest_images(memory: StyleMemory, images: Sequence[ImageUtterance], cache:
 def ingest_journal(memory, records, image_cache, since=None, bot_since=None):
     """Share incremental ingestion between CLI and scheduled service work."""
     records = list(records)
-    count = memory.add(collect_utterances(records, since=since, bot_since=bot_since), skip_existing=True)
+    count = memory.add(
+        collect_utterances(records, since=since, bot_since=bot_since), skip_existing=True
+    )
     image_count, rejected, missing = 0, [], []
     if supports_images(memory.embedder):
         located = []
@@ -655,8 +714,12 @@ def ingest_journal(memory, records, image_cache, since=None, bot_since=None):
             else:
                 located.append((image, path))
         image_count, rejected = memory.add_images(located, skip_existing=True)
-    return {"text": count, "images": image_count, "missing": missing,
-            "rejected": [item.event_key for item, _ in rejected]}
+    return {
+        "text": count,
+        "images": image_count,
+        "missing": missing,
+        "rejected": [item.event_key for item, _ in rejected],
+    }
 
 
 if __name__ == "__main__":

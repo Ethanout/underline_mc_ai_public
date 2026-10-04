@@ -1,10 +1,13 @@
 """Host-account tools remain admin-only and redact credential output."""
+
 from __future__ import annotations
 
 import os
 import re
 import subprocess
+import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from .settings import KEY_FILES
@@ -27,7 +30,8 @@ def redact(text):
     text = re.sub(r"sk-[A-Za-z0-9_-]+", "[密钥已隐藏]", str(text))
     for name in KEY_FILES.values():
         secret = os.environ.get(name, "")
-        if secret: text = text.replace(secret, "[密钥已隐藏]")
+        if secret:
+            text = text.replace(secret, "[密钥已隐藏]")
     return text
 
 
@@ -36,7 +40,8 @@ def install_admin_tools(registry, web_search=None, web_read=None, runner=subproc
         path = protected_path(args["path"])
         with path.open("rb") as handle:
             raw = handle.read(1_000_001)
-        if len(raw) > 1_000_000: raise ValueError("文件超过读取大小限制")
+        if len(raw) > 1_000_000:
+            raise ValueError("文件超过读取大小限制")
         return {"content": redact(raw.decode("utf-8"))}
 
     def write_file(task, args):
@@ -48,21 +53,47 @@ def install_admin_tools(registry, web_search=None, web_read=None, runner=subproc
     def command(task, args):
         timeout = max(1, min(120, float(args.get("timeout", 30))))
         try:
-            result = runner(str(args["command"]), shell=True, capture_output=True, text=True, timeout=timeout)
-            return {"returncode": result.returncode, "stdout": redact(result.stdout), "stderr": redact(result.stderr)}
+            result = runner(
+                str(args["command"]), shell=True, capture_output=True, text=True, timeout=timeout
+            )
+            return {
+                "returncode": result.returncode,
+                "stdout": redact(result.stdout),
+                "stderr": redact(result.stderr),
+            }
         except subprocess.TimeoutExpired as exc:
-            return {"error": "命令执行超时", "stdout": redact(exc.stdout or ""), "stderr": redact(exc.stderr or "")}
+            return {
+                "error": "命令执行超时",
+                "stdout": redact(exc.stdout or ""),
+                "stderr": redact(exc.stderr or ""),
+            }
 
     def read_web(task, args):
         url = str(args["url"])
-        if not url.startswith(("http://", "https://")): raise ValueError("网页地址必须是 HTTP 或 HTTPS")
-        if web_read: return {"content": redact(web_read(url))}
+        if not url.startswith(("http://", "https://")):
+            raise ValueError("网页地址必须是 HTTP 或 HTTPS")
+        if web_read:
+            return {"content": redact(web_read(url))}
         with urllib.request.urlopen(url, timeout=20) as response:
             return {"content": redact(response.read(1_000_000).decode("utf-8", errors="replace"))}
 
     def search_web(task, args):
-        if not web_search: raise RuntimeError("网页搜索提供方未配置")
-        return {"results": web_search(str(args["query"]))}
+        query = str(args["query"])
+        if web_search:
+            return {"results": web_search(query)}
+        url = "https://www.bing.com/search?format=rss&q=" + urllib.parse.quote(query)
+        with urllib.request.urlopen(url, timeout=20) as response:
+            root = ET.fromstring(response.read(1_000_000))
+        return {
+            "results": [
+                {
+                    "title": item.findtext("title"),
+                    "url": item.findtext("link"),
+                    "summary": item.findtext("description"),
+                }
+                for item in root.findall(".//item")[:10]
+            ]
+        }
 
     for name, handler, props in (
         ("read_file", read_file, {"path": "string"}),

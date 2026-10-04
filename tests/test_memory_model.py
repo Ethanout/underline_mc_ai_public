@@ -1,27 +1,41 @@
 """Simulated clock tests separate activation, reinforcement and storage policy."""
+
 from __future__ import annotations
-import json
+
 import os
 import unittest
 from unittest.mock import patch
+
 from workspace_bootstrap import add_workspace_packages
+
 add_workspace_packages()
 from qqbot.memory_model import MemoryModel, MemoryParameters, MemoryService, retrievability
 from qqbot.store import Store, dumps
 
 
 def state(mid="1", **values):
-    return {"id": mid, "category": "unrelated", "content": "偏好", "sources": [mid],
-            "author": "admin", "strength": 100, "last_used": 0, "activation": 0, **values}
+    return {
+        "id": mid,
+        "category": "unrelated",
+        "content": "偏好",
+        "sources": [mid],
+        "author": "admin",
+        "strength": 100,
+        "last_used": 0,
+        "activation": 0,
+        **values,
+    }
 
 
 class MemoryTests(unittest.TestCase):
     def setUp(self):
         self.now = [100.0]
-        self.model = MemoryModel(lambda: self.now[0], MemoryParameters(initial_strength=100, forgetting_threshold=.5))
+        self.model = MemoryModel(
+            lambda: self.now[0], MemoryParameters(initial_strength=100, forgetting_threshold=0.5)
+        )
 
     def test_power_law_activation_and_half_life(self):
-        self.assertAlmostEqual(retrievability(100, 0, 100, .5), 2 ** -.5)
+        self.assertAlmostEqual(retrievability(100, 0, 100, 0.5), 2**-0.5)
         item = state()
         self.model.activate(item)
         self.assertEqual(item["strength"], 100)
@@ -37,10 +51,14 @@ class MemoryTests(unittest.TestCase):
         self.assertGreater(long_gain, short_gain)
         self.assertEqual(long["evidence"][0]["memory_id"], "2")
         a, b = state(), state("2")
-        for _ in range(10): self.model.activate(b)
-        self.assertLess(self.model.reinforce(b, position="b"), self.model.reinforce(a, position="a"))
+        for _ in range(10):
+            self.model.activate(b)
+        self.assertLess(
+            self.model.reinforce(b, position="b"), self.model.reinforce(a, position="a")
+        )
         self.assertGreater(a["strength"], 100)
-        with self.assertRaises(ValueError): self.model.reinforce(a)
+        with self.assertRaises(ValueError):
+            self.model.reinforce(a)
 
     def test_merge_mean_remaining_sources_and_permanence(self):
         left, right = state(), state("2", strength=200)
@@ -70,16 +88,44 @@ class MemoryTests(unittest.TestCase):
     def test_service_no_delete_and_opt_in_recycle(self):
         store = Store(":memory:", clock=lambda: 10_000_000)
         item = state()
-        store.write("INSERT INTO memory_state VALUES(?,?,?,?,?,?,?,?,?)", ("1", "g", "unrelated", "note", "admin", "偏好", dumps(["source"]), dumps(item), 0))
+        store.write(
+            "INSERT INTO memory_state VALUES(?,?,?,?,?,?,?,?,?)",
+            ("1", "g", "unrelated", "note", "admin", "偏好", dumps(["source"]), dumps(item), 0),
+        )
         service = MemoryService(store)
         with patch.dict(os.environ, {"QQBOT_MEMORY_FORGET_ENABLED": "0"}):
             service.sleep("g")
             self.assertEqual(len(store.rows("SELECT * FROM memory_state")), 1)
             self.assertEqual(store.rows("SELECT * FROM recycle_bin"), [])
-            with self.assertRaises(PermissionError): service.record_use("g", "1", "reply")
+            with self.assertRaises(PermissionError):
+                service.record_use("g", "1", "reply")
         with patch.dict(os.environ, {"QQBOT_MEMORY_FORGET_ENABLED": "1"}):
             service.sleep("g")
             self.assertEqual(len(store.rows("SELECT * FROM recycle_bin")), 1)
             store.restore("1")
             self.assertEqual(service.load("g")[0]["category"], "unrelated")
+        store.close()
+
+    def test_permanent_note_keeps_member_permissions_and_revoked_preferences_disappear(self):
+        from qqbot.tools import ToolRegistry
+
+        store = Store(":memory:", clock=lambda: 100)
+        registry = ToolRegistry(store)
+        admin = store.create_task("g", "admin", "1", "伊桑")
+        member = store.create_task("g", "member", "2")
+        service = MemoryService(store)
+        with patch.dict(os.environ, {"QQBOT_ADMIN_IDS": "admin"}):
+            mid = registry.execute(admin, "remember", {"content": "摸摸→ww"})["id"]
+            item = service.load("g")[0]
+            service.model("g").make_permanent(item)
+            service.save(item)
+            self.assertTrue(service.preference_hints("g", "摸摸"))
+            self.assertEqual(
+                registry.execute(member, "search_memory", {"queries": ["摸摸"]})["results"], []
+            )
+            with self.assertRaises(PermissionError):
+                service.record_use("g", mid, "reply")
+        with patch.dict(os.environ, {"QQBOT_ADMIN_IDS": "replacement"}):
+            self.assertEqual(service.preference_hints("g", "摸摸"), [])
+        self.assertEqual(service.load("g")[0]["category"], "unrelated")
         store.close()

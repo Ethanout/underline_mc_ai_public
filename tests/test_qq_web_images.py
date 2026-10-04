@@ -48,7 +48,7 @@ class EventAuthTests(unittest.TestCase):
         for patch in patches:
             patch.start()
             self.addCleanup(patch.stop)
-        return TestClient(web.app)
+        return TestClient(web.app, client=("127.0.0.1", 50000))
 
     def test_napcat_signature_is_accepted(self):
         with TemporaryDirectory() as directory:
@@ -90,7 +90,7 @@ class EventImageHookTests(unittest.TestCase):
             with mock.patch.object(web, "event_journal", journal), \
                     mock.patch.object(web, "image_executor", fake_executor), \
                     mock.patch.dict("os.environ", {"QQBOT_EVENT_TOKEN": "t"}):
-                client = TestClient(web.app)
+                client = TestClient(web.app, client=("127.0.0.1", 50000))
                 headers = {"Authorization": "Bearer t"}
                 self.assertEqual(client.post("/api/onebot/event", json=event, headers=headers).status_code, 200)
                 client.post("/api/onebot/event", json=event, headers=headers)

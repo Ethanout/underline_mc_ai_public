@@ -1,4 +1,5 @@
 """Low-cost OneBot event observation for the QQ agent."""
+
 from __future__ import annotations
 
 import hashlib
@@ -105,11 +106,12 @@ class EventJournal:
             if text:
                 user_id = str(event.get("user_id", ""))
                 is_bot = user_id == "self" or (
-                    event.get("self_id") is not None
-                    and user_id == str(event["self_id"])
+                    event.get("self_id") is not None and user_id == str(event["self_id"])
                 )
-                name = "毯毯" if is_bot else (
-                    sender.get("nickname") or sender.get("card") or user_id or "群友"
+                name = (
+                    "毯毯"
+                    if is_bot
+                    else (sender.get("nickname") or sender.get("card") or user_id or "群友")
                 )
                 name = " ".join(str(name).splitlines())
                 timestamp = event.get("time") or record.get("received_at", 0)

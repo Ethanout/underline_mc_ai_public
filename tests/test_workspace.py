@@ -25,7 +25,7 @@ class WorkspaceTests(unittest.TestCase):
         import app as launcher
 
         self.assertIs(launcher.app, app)
-        client = TestClient(launcher.app)
+        client = TestClient(launcher.app, client=("127.0.0.1", 50000))
         response = client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn("QQ Bot", response.text)
