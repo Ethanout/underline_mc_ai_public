@@ -8,6 +8,8 @@ import json
 import os
 import threading
 import uuid
+import time
+from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
@@ -22,6 +24,13 @@ from . import essence_exporter as exporter
 from .events import EventJournal
 from .images import DEFAULT_IMAGE_DIR, ImageCache, image_segments
 from .reply import ReplyContext, ReplyPolicy, addressed_text, deepseek_reply
+from .store import Store
+from .agent import Agent, make_post, prompt_messages
+from .reply import probe_capabilities
+from .tools import ToolRegistry
+from .deepseek_files import DeepSeekImageFiles
+from .admin_tools import install_admin_tools
+from .collection import install_collection_tools, model_classifier
 
 APP_ROOT = Path(__file__).resolve().parent
 STATIC_INDEX = APP_ROOT / "static" / "index.html"
@@ -29,8 +38,22 @@ executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="qqbot-export")
 jobs: dict[str, dict[str, Any]] = {}
 jobs_lock = threading.Lock()
 
-app = FastAPI(title="QQ Bot Exporter", version="0.1.0")
-event_journal = EventJournal(Path(os.environ.get("QQBOT_EVENT_LOG", "runtime/private/qq_events.jsonl")))
+@asynccontextmanager
+async def lifespan(app):
+    await run_in_threadpool(probe_models)
+    stop = threading.Event()
+    worker = threading.Thread(target=background_work, args=(stop,), daemon=True, name="qqbot-maintenance")
+    worker.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        worker.join(timeout=2)
+
+
+app = FastAPI(title="QQ Bot Exporter", version="0.1.0", lifespan=lifespan)
+event_store = Store()
+event_journal = EventJournal(Path(os.environ.get("QQBOT_EVENT_LOG", "runtime/private/qq_events.jsonl")), store=event_store)
 # Own single worker: a slow image host must not hold up replies or export jobs.
 image_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="qqbot-images")
 image_cache = ImageCache(os.environ.get("QQBOT_IMAGE_DIR", DEFAULT_IMAGE_DIR))
@@ -41,6 +64,68 @@ reply_style_k = int(os.environ.get("QQBOT_STYLE_REPLY_K", "5"))
 
 _style_memory_lock = threading.Lock()
 _style_memory_instance = None
+_capabilities = {}
+_agent_lock = threading.Lock()
+
+
+def _onebot(action, params):
+    return exporter.api_call(onebot_endpoint(), os.environ.get("ONEBOT_ACCESS_TOKEN"), action, params, False)
+
+
+def _probe_upload(raw, ttl):
+    from tempfile import TemporaryDirectory
+    with TemporaryDirectory() as directory:
+        path = Path(directory) / "probe.png"
+        path.write_bytes(raw)
+        return DeepSeekImageFiles(event_store, os.environ.get("DEEPSEEK_API_KEY", ""), ttl=ttl).upload(path)[0]
+
+
+def probe_models():
+    key = os.environ.get("DEEPSEEK_API_KEY", "")
+    if not key:
+        _capabilities["error"] = "未配置 DeepSeek API key"
+        return
+    post = make_post(key)
+    for model in dict.fromkeys((os.environ.get("QQBOT_MODEL", "deepseek-flash"), os.environ.get("QQBOT_JUDGE_MODEL", "deepseek-flash"))):
+        value = probe_capabilities(post, _probe_upload, model)
+        _capabilities[model] = value
+        event_store.set_state("capabilities:" + model, value)
+
+
+def ingest_style():
+    from .style_memory import ingest_journal, read_journal
+    memory = _get_style_memory()
+    if memory is None:
+        return {"text": 0, "images": 0}
+    return ingest_journal(memory, read_journal(event_journal.path), image_cache)
+
+
+def background_work(stop):
+    interval = float(os.environ.get("QQBOT_MEMORY_INGEST_MINUTES", "30")) * 60
+    if interval <= 0:
+        return
+    while not stop.wait(interval):
+        try:
+            ingest_style()
+            sync_essence()
+        except Exception as exc:
+            print(f"增量记忆入库失败：{type(exc).__name__}")
+
+
+def sync_essence():
+    key = os.environ.get("DEEPSEEK_API_KEY", "")
+    if not key:
+        return
+    registry = ToolRegistry(event_store, _onebot)
+    tricks = install_collection_tools(registry, model_classifier(make_post(key)))
+    groups = {row["group_id"] for row in event_store.rows("SELECT DISTINCT group_id FROM messages")}
+    for group in sorted(groups):
+        # Scheduled collection uses service provenance, never a forged group role.
+        task = {"group_id": group}
+        data = registry.read_essence(task, {})
+        available = [row for row in data["messages"] if exporter.message_id(row) not in data["missing"]]
+        tricks.sync(group, available)
+    tricks.reindex()
 
 
 def _get_style_memory():
@@ -148,12 +233,15 @@ def index() -> str:
 
 
 @app.get("/api/health")
-def health() -> dict[str, str]:
+def health() -> dict[str, Any]:
     return {
         "status": "ok",
         "token_configured": str(bool(os.environ.get("ONEBOT_ACCESS_TOKEN"))).lower(),
         "onebot_endpoint": onebot_endpoint(),
-        "observation_mode": "true",
+        "observation_mode": "false",
+        "model": os.environ.get("QQBOT_MODEL", "deepseek-flash"),
+        "judge_model": os.environ.get("QQBOT_JUDGE_MODEL", "deepseek-flash"),
+        "capabilities": _capabilities,
     }
 
 
@@ -202,11 +290,11 @@ def handle_event(event: dict[str, Any]) -> dict[str, Any]:
         # QQ image links expire within hours; copy them now, not at ingestion.
         image_executor.submit(image_cache.fetch_event, event)
     text = addressed_text(event)
-    if text is not None:
+    if accepted and text is not None:
         executor.submit(reply_to_group, event, text)
     # NapCat reads this body as a "quick operation"; keep it free of keys such
     # as reply/ban/kick so nothing here is ever acted on.
-    return {"ok": True, "accepted": accepted, "reply_queued": text is not None}
+    return {"ok": True, "accepted": accepted, "reply_queued": accepted and text is not None}
 
 
 def reply_to_group(event: dict[str, Any], text: str) -> None:
@@ -240,14 +328,36 @@ def reply_to_group(event: dict[str, Any], text: str) -> None:
                         style_ctx = "\n".join(lines)
             except Exception as exc:  # noqa: BLE001
                 print(f"风格检索失败（不影响回复）：{exc}")
-        answer = deepseek_reply(
-            text,
-            api_key,
-            max_tokens=reply_max_tokens,
-            sender_context=sender_context,
-            recent_context=event_journal.recent_context(context.group_id, reply_context_chars),
-            style_context=style_ctx,
-        )
+        trigger_id = str(event.get("message_id", EventJournal.event_key(event)))
+        task = event_store.create_task(context.group_id, context.user_id, trigger_id,
+            sender.get("nickname") or sender.get("card") or context.user_id)
+        if task["status"] == "sent":
+            return
+        model = os.environ.get("QQBOT_MODEL", "deepseek-flash")
+        post = make_post(api_key)
+        files = DeepSeekImageFiles(event_store, api_key)
+        def view_images(source):
+            caps = _capabilities.get(model, event_store.get_state("capabilities:" + model, {}))
+            if not caps.get("images"):
+                raise RuntimeError("模型图片输入能力探测未通过")
+            parts, missing = files.cached_parts(source, image_cache)
+            return {"images": parts, "missing": missing}
+        registry = ToolRegistry(event_store, _onebot, image_view=view_images)
+        install_admin_tools(registry)
+        install_collection_tools(registry, model_classifier(post))
+        agent = Agent(event_store, registry, post, model=model,
+            max_rounds=int(os.environ.get("QQBOT_TOOL_ROUNDS", "3")), max_tokens=reply_max_tokens,
+            capabilities=_capabilities.get(model, event_store.get_state("capabilities:" + model, {})),
+            use_langgraph=True)
+        parts = []
+        if image_segments(event):
+            parts = view_images(event)["images"]
+            files.summarize(event, image_cache, post, model)
+        messages = prompt_messages(event_store.transcript(context.group_id, max_chars=reply_context_chars, trigger_id=trigger_id),
+            style_notes=style_ctx, now=time.strftime("%Y-%m-%d %H:%M:%S"),
+            instruction=sender_context, images=parts)
+        with _agent_lock:
+            answer = agent.run(task, messages)
         result = exporter.api_call(
             onebot_endpoint(),
             os.environ.get("ONEBOT_ACCESS_TOKEN"),
@@ -263,6 +373,7 @@ def reply_to_group(event: dict[str, Any], text: str) -> None:
             message_id,
             reply_to=str(trigger_id) if trigger_id is not None else None,
         )
+        event_store.update_task(task["id"], "sent", answer)
     except Exception as exc:
         print(f"群回复失败：{exc}")
 
@@ -283,6 +394,28 @@ def get_job(job_id: str) -> dict[str, Any]:
         if not job:
             raise HTTPException(404, "任务不存在")
         return dict(job)
+
+
+@app.get("/api/tasks")
+def tasks(limit: int = 50) -> dict[str, Any]:
+    return {"tasks": event_store.rows("SELECT * FROM tasks ORDER BY updated DESC LIMIT ?", (max(1, min(limit, 200)),))}
+
+
+@app.get("/api/audit")
+def audit(limit: int = 100) -> dict[str, Any]:
+    return {"audit": event_store.rows("SELECT * FROM audit ORDER BY ts DESC LIMIT ?", (max(1, min(limit, 500)),))}
+
+
+@app.get("/api/memory/forgetting")
+def forgetting() -> dict[str, Any]:
+    from .memory_model import MemoryModel
+    states = event_store.rows("SELECT * FROM memory_state")
+    return {"simulated": MemoryModel().simulate_forgetting(states), "deleted": []}
+
+
+@app.get("/api/recycle-bin")
+def recycle_bin() -> dict[str, Any]:
+    return {"items": event_store.rows("SELECT * FROM recycle_bin ORDER BY deleted DESC")}
 
 
 def web_host() -> str:
