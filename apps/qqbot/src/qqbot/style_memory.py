@@ -337,7 +337,7 @@ class StyleMemory:
     def __exit__(self, *exc_info: object) -> None:
         self.close()
 
-    def add(self, utterances: Sequence[Utterance], batch_size: int = DEFAULT_BATCH_SIZE) -> int:
+    def add(self, utterances: Sequence[Utterance], batch_size: int = DEFAULT_BATCH_SIZE, skip_existing: bool = True) -> int:
         """Embed and upsert lines.  Re-running over the same journal is safe."""
         by_group: dict[str, list[Utterance]] = {}
         for utterance in utterances:
@@ -345,6 +345,10 @@ class StyleMemory:
         stored = 0
         for group_id, items in by_group.items():
             collection = self.collection(group_id)
+            items = list({item.event_key: item for item in items}.values())
+            if skip_existing and items:
+                existing = set(collection.get(ids=[item.event_key for item in items]).get("ids", []))
+                items = [item for item in items if item.event_key not in existing]
             for start in range(0, len(items), batch_size):
                 chunk = items[start : start + batch_size]
                 vectors = self.embedder.encode([item.text for item in chunk])
@@ -361,6 +365,7 @@ class StyleMemory:
         self,
         items: Sequence[tuple[ImageUtterance, Path]],
         batch_size: int = 8,
+        skip_existing: bool = True,
     ) -> tuple[int, list[tuple[ImageUtterance, str]]]:
         """Embed and upsert ``(image, local path)`` pairs.
 
@@ -376,6 +381,10 @@ class StyleMemory:
         rejected: list[tuple[ImageUtterance, str]] = []
         for group_id, entries in by_group.items():
             collection = self.collection(group_id)
+            entries = list({item[0].event_key: item for item in entries}.values())
+            if skip_existing and entries:
+                existing = set(collection.get(ids=[item[0].event_key for item in entries]).get("ids", []))
+                entries = [item for item in entries if item[0].event_key not in existing]
             for start in range(0, len(entries), batch_size):
                 chunk = entries[start : start + batch_size]
                 try:
@@ -470,10 +479,13 @@ class StyleMemory:
         metadatas = (result.get("metadatas") or [[]])[0]
         distances = (result.get("distances") or [[]])[0]
         hits: list[dict] = []
-        for document, metadata, distance in zip(documents, metadatas, distances):
+        ids = (result.get("ids") or [[""] * len(documents)])[0]
+        for item_id, document, metadata, distance in zip(ids, documents, metadatas, distances):
             metadata = metadata or {}
             hits.append(
                 {
+                    "id": item_id,
+                    "user_id": metadata.get("user_id", ""),
                     "text": document,
                     "score": 1.0 - float(distance),
                     "kind": metadata.get("kind", "text"),
@@ -556,7 +568,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if pending or pending_images:
         print(f"后端：{embedder.name}")
     if pending:
-        stored = memory.add(pending, batch_size=args.batch_size)
+        records_for_ingest = records if not args.no_images else [
+            {**row, "event": {**row["event"], "message": [s for s in row["event"].get("message", []) if s.get("type") != "image"]}}
+            for row in records]
+        result = ingest_journal(memory, records_for_ingest, ImageCache(args.images_dir), since, bot_since)
+        stored = result["text"]
         bot_lines = [item for item in pending if item.is_bot]
         groups = sorted({item.group_id for item in pending})
         print(f"写入 {stored} 条，其中毯毯自己的 {len(bot_lines)} 条，涉及群 {len(groups)} 个")
@@ -565,8 +581,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if untethered:
             print(f"  毯毯的话里 {untethered} 条没有引用段（看不出在回什么），{tethered} 条带引用")
             print("  这些多半是修好引用记录之前留下的，用 --bot-since 2026-10-04 之类的时间下限可以剔除")
-    if pending_images:
-        _ingest_images(memory, pending_images, ImageCache(args.images_dir))
+    if pending_images and not pending:
+        ingest_journal(memory, records, ImageCache(args.images_dir), since, bot_since)
 
     if args.stats or not querying:
         for group_id, count in sorted(memory.stats().items()):
@@ -623,6 +639,24 @@ def _ingest_images(memory: StyleMemory, images: Sequence[ImageUtterance], cache:
         print(f"  {missing} 张本地没缓存、链接也取不到了（QQ 图片链接会过期，web 开着时收到的才会自动缓存）")
     if rejected:
         print(f"  {len(rejected)} 张被接口拒收，第一条原因：{rejected[0][1][:200]}")
+
+
+def ingest_journal(memory, records, image_cache, since=None, bot_since=None):
+    """Share incremental ingestion between CLI and scheduled service work."""
+    records = list(records)
+    count = memory.add(collect_utterances(records, since=since, bot_since=bot_since), skip_existing=True)
+    image_count, rejected, missing = 0, [], []
+    if supports_images(memory.embedder):
+        located = []
+        for image in collect_images(records, since=since, bot_since=bot_since):
+            path = image_cache.get(image.ref)
+            if path is None:
+                missing.append(image.event_key)
+            else:
+                located.append((image, path))
+        image_count, rejected = memory.add_images(located, skip_existing=True)
+    return {"text": count, "images": image_count, "missing": missing,
+            "rejected": [item.event_key for item, _ in rejected]}
 
 
 if __name__ == "__main__":

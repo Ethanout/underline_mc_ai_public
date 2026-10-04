@@ -12,11 +12,12 @@ from typing import Any
 class EventJournal:
     """Append deduplicated group messages without invoking an LLM."""
 
-    def __init__(self, path: Path, max_bytes: int = 50_000_000) -> None:
+    def __init__(self, path: Path, max_bytes: int = 50_000_000, store=None) -> None:
         self.path = path
         self.max_bytes = max_bytes
         self._seen: set[str] = set()
         self._lock = threading.Lock()
+        self.store = store
 
     @staticmethod
     def event_key(event: dict[str, Any]) -> str:
@@ -30,16 +31,21 @@ class EventJournal:
         if event.get("post_type") != "message" or event.get("message_type") != "group":
             return False
         key = self.event_key(event)
+        stable_key = f"{event.get('group_id', '')}:{key}"
         with self._lock:
-            if key in self._seen:
+            if stable_key in self._seen:
                 return False
-            self._seen.add(key)
+            if self.store is not None and self.store.message(str(event.get("group_id", "")), key):
+                return False
             self.path.parent.mkdir(parents=True, exist_ok=True)
             if self.path.exists() and self.path.stat().st_size >= self.max_bytes:
                 raise RuntimeError("群消息观察日志已达到大小上限")
             row = {"received_at": time.time(), "event_key": key, "event": event}
             with self.path.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+            if self.store is not None:
+                self.store.append(event, row["received_at"])
+            self._seen.add(stable_key)
             return True
 
     def append_bot_message(
