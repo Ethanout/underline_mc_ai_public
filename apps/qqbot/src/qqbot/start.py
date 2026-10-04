@@ -39,6 +39,20 @@ def bind_error(host: str, port: int) -> OSError | None:
     return None
 
 
+def our_web_running(host: str, port: int) -> bool:
+    """Is the port held by a qqbot web (its /api/health answers), not a stranger?"""
+    import json
+    import urllib.request
+
+    if host in ("0.0.0.0", "::", ""):
+        host = "127.0.0.1"
+    try:
+        with urllib.request.urlopen(f"http://{host}:{port}/api/health", timeout=1) as response:
+            return json.loads(response.read()).get("status") == "ok"
+    except Exception:  # noqa: BLE001 - anything else means "not ours"
+        return False
+
+
 def event_url(host: str, port: int) -> str:
     if host in ("0.0.0.0", "::", ""):
         host = "127.0.0.1"
@@ -71,8 +85,12 @@ def main(argv: list[str] | None = None) -> int:
     from .web import app, onebot_endpoint, web_host, web_port
 
     host, port = web_host(), web_port()
+    web_already = False
     error = bind_error(host, port)
-    if error is not None:
+    if error is not None and our_web_running(host, port):
+        web_already = True
+        print(f"web 已经在 {host}:{port} 跑着，这次只管 NapCat。改过代码的话先关掉那个 web 窗口再启动。")
+    elif error is not None:
         print(f"端口 {host}:{port} 用不了：{error}")
         print("  可能已经有一个 web 在跑；或者端口落在 Windows 保留区间里（WinError 10013）。")
         print("  查保留区间：netsh int ipv4 show excludedportrange protocol=tcp")
@@ -97,6 +115,16 @@ def main(argv: list[str] | None = None) -> int:
                 print("NapCat 已经在跑，但配置刚改过：关掉 NapCat 窗口再跑一次本命令，新配置才生效。")
             else:
                 print("NapCat 已经在跑，不再重复启动。")
+
+    if web_already:
+        if launch_napcat:
+            try:
+                napcat.launch(directory, uin)
+            except OSError as exc:
+                print(f"NapCat 启动失败：{exc}")
+                return 1
+            print(f"NapCat 已在新窗口启动{'（快速登录 ' + uin + '）' if uin else ''}。")
+        return 0
 
     import uvicorn
 

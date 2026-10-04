@@ -33,7 +33,7 @@ python -m qqbot start
 2. 事件 token 不存在就生成一个。
 3. 把 web 的推送地址和事件 token 写进 NapCat 的 `httpClients`，旧文件先备份成 `.bak`，没变化就不动。
 4. 先起 web。
-5. 等 web 起来了，再在新窗口起 NapCat；设了 `NAPCAT_UIN` 会快速登录。
+5. 等 web 起来了，再在新窗口起 NapCat。它直接找 `QQ.exe`，不走 NapCat 自带的 `.bat`。那个脚本只查注册表，有些 QQNT 安装没写注册表，就会报 provided QQ path is invalid。实在找不到就在 `.env` 里设 `NAPCAT_QQ_PATH`。设了 `NAPCAT_UIN` 会快速登录：这个号在本机扫码登录过一次以后就不用再扫。
 
 如果 NapCat 已经在跑，就不会再起一个。这时要是配置刚改过，它会提示你重开 NapCat，但不会替你杀进程，因为 NapCat 和桌面 QQ 共用同一份安装。改端口只改 `.env` 的 `QQBOT_WEB_PORT`，再启动一次就行。只想起 web 就加 `--no-napcat`。
 

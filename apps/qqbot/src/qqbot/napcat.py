@@ -27,7 +27,6 @@ from typing import Any
 
 CLIENT_NAME = "tantan"
 DEFAULT_EVENT_TOKEN_FILE = "config/api/qqbot_event.txt"
-DEFAULT_LAUNCHER = "launcher-user.bat"
 
 
 @dataclass(frozen=True)
@@ -128,14 +127,83 @@ def sync(path: Path, url: str, token: str) -> bool:
     return True
 
 
-def launch(directory: Path, uin: str = "", launcher: str = "") -> subprocess.Popen:
-    """Start NapCat in its own console window.  ``uin`` enables quick login."""
-    script = directory / (launcher or os.environ.get("NAPCAT_LAUNCHER", "") or DEFAULT_LAUNCHER)
-    if not script.is_file():
-        raise FileNotFoundError(f"没找到 NapCat 启动脚本 {script}")
-    command = ["cmd", "/c", str(script)]
+QQ_EXE_CANDIDATES = (
+    r"C:\Program Files\Tencent\QQNT\QQ.exe",
+    r"C:\Program Files (x86)\Tencent\QQNT\QQ.exe",
+    r"D:\Program Files\Tencent\QQNT\QQ.exe",
+)
+
+
+def _registry_qq_exe() -> Path | None:
+    """Where NapCat's own .bat looks: the ``Uninstall\\QQ`` key's UninstallString."""
+    try:
+        import winreg
+    except ImportError:
+        return None
+    key_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\QQ"
+    for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+        for view in (winreg.KEY_WOW64_32KEY, winreg.KEY_WOW64_64KEY):
+            try:
+                with winreg.OpenKey(hive, key_path, 0, winreg.KEY_READ | view) as key:
+                    uninstall, _ = winreg.QueryValueEx(key, "UninstallString")
+            except OSError:
+                continue
+            candidate = Path(str(uninstall).strip('"')).parent / "QQ.exe"
+            if candidate.is_file():
+                return candidate
+    return None
+
+
+def find_qq_exe() -> Path:
+    """``NAPCAT_QQ_PATH``, else the registry, else the usual install folders.
+
+    NapCat's bundled launcher only tries the registry, and some QQNT installs
+    never write that key -- then it dies with "provided QQ path is invalid".
+    """
+    override = os.environ.get("NAPCAT_QQ_PATH", "").strip()
+    if override:
+        path = Path(override).expanduser()
+        if not path.is_file():
+            raise FileNotFoundError(f"NAPCAT_QQ_PATH 指向的 {path} 不存在")
+        return path
+    found = _registry_qq_exe()
+    if found is not None:
+        return found
+    for candidate in QQ_EXE_CANDIDATES:
+        if Path(candidate).is_file():
+            return Path(candidate)
+    raise FileNotFoundError("找不到 QQ.exe，在 .env 里用 NAPCAT_QQ_PATH 指定")
+
+
+def launch(directory: Path, uin: str = "") -> subprocess.Popen:
+    """Start NapCat in its own console window.  ``uin`` enables quick login.
+
+    Does what ``launcher-user.bat`` does, minus its registry-only QQ lookup:
+    set the NAPCAT_* paths, write ``loadNapCat.js``, run the boot exe on QQ.
+    """
+    directory = directory.resolve()
+    boot = directory / "NapCatWinBootMain.exe"
+    if not boot.is_file():
+        raise FileNotFoundError(f"没找到 {boot}，NAPCAT_DIR 是 NapCat.Shell 的目录吗？")
+    qq = find_qq_exe()
+    main_path = (directory / "napcat.mjs").as_posix()
+    load_path = directory / "loadNapCat.js"
+    load_path.write_text(f'(async () => {{await import("file:///{main_path}")}})()\n', encoding="utf-8")
+    env = dict(os.environ)
+    env.update(
+        {
+            "NAPCAT_PATCH_PACKAGE": str(directory / "qqnt.json"),
+            "NAPCAT_LOAD_PATH": str(load_path),
+            "NAPCAT_INJECT_PATH": str(directory / "NapCatWinBootHook.dll"),
+            "NAPCAT_LAUNCHER_PATH": str(boot),
+            "NAPCAT_MAIN_PATH": main_path,
+        }
+    )
+    command = [str(boot), str(qq), str(directory / "NapCatWinBootHook.dll")]
     if uin:
+        # Quick login needs this QQ to have logged in to the account once
+        # before; otherwise NapCat falls back to the QR code by itself.
         command += ["-q", uin]
-    # The launcher resolves its own files from %cd%, so cwd must be its folder.
+        env["NAPCAT_QUICK_ACCOUNT"] = uin
     flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
-    return subprocess.Popen(command, cwd=directory, creationflags=flags)
+    return subprocess.Popen(command, cwd=directory, env=env, creationflags=flags)

@@ -94,6 +94,25 @@ class EventTokenTests(unittest.TestCase):
             self.assertEqual(napcat.ensure_event_token(path), first)
 
 
+class QQExeTests(unittest.TestCase):
+    def test_override_wins_and_must_exist(self):
+        with TemporaryDirectory() as directory:
+            exe = Path(directory) / "QQ.exe"
+            exe.write_bytes(b"")
+            with mock.patch.dict(os.environ, {"NAPCAT_QQ_PATH": str(exe)}):
+                self.assertEqual(napcat.find_qq_exe(), exe)
+            with mock.patch.dict(os.environ, {"NAPCAT_QQ_PATH": str(exe) + ".missing"}):
+                with self.assertRaises(FileNotFoundError):
+                    napcat.find_qq_exe()
+
+    def test_falls_back_to_install_folders_without_registry(self):
+        with TemporaryDirectory() as directory:
+            exe = Path(directory) / "QQ.exe"
+            exe.write_bytes(b"")
+            with mock.patch.dict(os.environ, {"NAPCAT_QQ_PATH": ""}),                     mock.patch.object(napcat, "_registry_qq_exe", return_value=None),                     mock.patch.object(napcat, "QQ_EXE_CANDIDATES", ("Z:/nope/QQ.exe", str(exe))):
+                self.assertEqual(napcat.find_qq_exe(), exe)
+
+
 class SettingsTests(unittest.TestCase):
     def test_napcat_dir_fills_endpoint_and_tokens(self):
         with TemporaryDirectory() as directory:
