@@ -4,15 +4,20 @@ Importing this module loads no model and opens no socket: the QQ bot keeps
 running on the CPU-only base dependencies.  A backend is only built when
 ``build_embedder`` is called, so the FastAPI process never pays for it.
 
-The default backend is ``api``: SiliconFlow serves the same ``bge-m3`` weights
-over an OpenAI-compatible endpoint, so nothing has to be downloaded and no
-several-GB model is held in memory.  The trade is that the default now needs
+The default backend is ``api`` with ``Qwen/Qwen3-VL-Embedding-8B`` on
+SiliconFlow.  It is an 8B model against ``bge-m3``'s 0.6B, chosen for the api
+path; whether it actually retrieves better chat lines is for ``--query`` to
+show.  Being a service, nothing is downloaded and nothing is held in memory
+here.  The trade is that the default needs
 ``QQBOT_EMBED_API_KEY`` -- and it fails loudly without one, which is the point.
 The alternative default fails quietly: ``local`` would pull ``BAAI/bge-m3``
 from HuggingFace on first use, and someone who never meant to run it locally
 would sit through a multi-gigabyte download before learning they had a choice.
 Set ``QQBOT_EMBED_BACKEND=local`` to keep everything on this machine; that path
-runs on the **CPU** so the GPU stays free for the user's own work.
+stays on ``bge-m3`` and runs on the **CPU** so the GPU stays free.
+
+The two models write different vector spaces (4096 vs 1024 dimensions), so a
+store built with one cannot be queried with the other; wipe it when switching.
 """
 from __future__ import annotations
 
@@ -24,7 +29,7 @@ from typing import Protocol, Sequence, runtime_checkable
 
 DEFAULT_LOCAL_MODEL = "BAAI/bge-m3"
 DEFAULT_API_BASE = "https://api.siliconflow.cn/v1"
-DEFAULT_API_MODEL = "BAAI/bge-m3"
+DEFAULT_API_MODEL = "Qwen/Qwen3-VL-Embedding-8B"
 
 
 @runtime_checkable

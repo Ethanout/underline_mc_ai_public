@@ -60,7 +60,7 @@ OneBot HTTP API -> essence_exporter.py -> messages.json + media/
 ```text
 runtime/private/qq_events.jsonl
   -> collect_utterances()   只留文字，认出发言人，认出毯毯自己的话，还原引用的原文
-  -> Embedder.encode()      默认本机 CPU 跑 bge-m3；也可切到 API
+  -> Embedder.encode()      默认走硅基流动的 Qwen3-VL-Embedding-8B；也可切到本机 bge-m3
   -> ChromaDB               每个群一个 collection，按 event_key 去重，重复跑不会写重
 ```
 
