@@ -5,16 +5,13 @@
 ## 快速开始
 
 ```powershell
-python -m pip install -e apps/qqbot
-python app.py
-# http://127.0.0.1:8787
+python -m pip install -e "apps/qqbot[style]"
+copy .env.example .env   # 填 NAPCAT_DIR 和 key 文件路径，只填这一次
+.\start_ui.bat           # 同步 NapCat 配置 -> 起 web -> 起 NapCat
+# http://127.0.0.1:18787
 ```
 
-设置 OneBot 访问凭据：
-
-```powershell
-$env:ONEBOT_ACCESS_TOKEN = "..."
-```
+详见 `apps/qqbot/README.md` 的「一键启动」。
 
 ## 当前目录
 

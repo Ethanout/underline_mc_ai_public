@@ -17,5 +17,6 @@
 </form><pre id="status">就绪</pre>
 <script>
 const form=document.querySelector('#form'), status=document.querySelector('#status');
+fetch('/api/health').then(r=>r.json()).then(h=>{if(h.onebot_endpoint)form.endpoint.value=h.onebot_endpoint}).catch(()=>{});
 form.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(form));d.diagnose=!!form.diagnose.checked;d.refresh=!!form.refresh.checked;let r=await fetch('/api/jobs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(d)});let j=await r.json();status.textContent=JSON.stringify(j,null,2);if(j.id){let timer=setInterval(async()=>{let x=await (await fetch('/api/jobs/'+j.id)).json();status.textContent=JSON.stringify(x,null,2);if(['succeeded','failed'].includes(x.status))clearInterval(timer)},1000)}};
 </script>

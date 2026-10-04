@@ -31,12 +31,15 @@ KEY_FILES: dict[str, str] = {
 
 # Reported by ``qqbot-config``; values are shown as set/absent, never printed.
 REPORTED_VARS: tuple[str, ...] = (
+    "NAPCAT_DIR",
+    "NAPCAT_UIN",
     "QQBOT_EMBED_BACKEND",
     "QQBOT_EMBED_BASE_URL",
     "QQBOT_EMBED_MODEL",
     "QQBOT_EMBED_DEVICE",
     "QQBOT_EMBED_API_KEY",
     "DEEPSEEK_API_KEY",
+    "ONEBOT_ENDPOINT",
     "ONEBOT_ACCESS_TOKEN",
     "QQBOT_EVENT_TOKEN",
     "QQBOT_EVENT_LOG",
@@ -112,7 +115,47 @@ def load_settings(force: bool = False) -> Path | None:
             _env_path = found
 
     _key_file_sources.update(_apply_key_files())
+    _key_file_sources.update(_apply_napcat())
     return _env_path
+
+
+def _apply_napcat() -> dict[str, str]:
+    """Fill the OneBot side from NapCat's own config, when ``NAPCAT_DIR`` is set.
+
+    NapCat already holds the API endpoint and token, so copying them into
+    ``.env`` only creates a second place to get them wrong.  The event token is
+    generated on first use.  Failures are reported, never raised: a missing
+    NapCat must not stop the style-memory tools from importing ``qqbot``.
+    """
+    from . import napcat
+
+    directory = napcat.napcat_dir()
+    if directory is None:
+        return {}
+    sources: dict[str, str] = {}
+    if not os.environ.get("QQBOT_EVENT_TOKEN", "").strip():
+        token_file = os.environ.get("QQBOT_EVENT_TOKEN_FILE", "").strip() or napcat.DEFAULT_EVENT_TOKEN_FILE
+        try:
+            os.environ["QQBOT_EVENT_TOKEN"] = napcat.ensure_event_token(token_file)
+            sources["QQBOT_EVENT_TOKEN"] = token_file
+        except OSError as exc:
+            print(f"事件 token 文件 {token_file} 读写失败：{exc}", file=sys.stderr)
+    try:
+        path = napcat.find_config(directory, os.environ.get("NAPCAT_UIN", "").strip())
+        server = napcat.api_server(napcat.read_config(path))
+    except (OSError, ValueError) as exc:
+        print(f"读不了 NapCat 配置：{exc}", file=sys.stderr)
+        return sources
+    if server is None:
+        print(f"{path} 里没有启用的 HTTP 服务端，导出和回复都连不上 NapCat", file=sys.stderr)
+        return sources
+    if not os.environ.get("ONEBOT_ENDPOINT", "").strip():
+        os.environ["ONEBOT_ENDPOINT"] = server.endpoint
+        sources["ONEBOT_ENDPOINT"] = "NapCat 配置"
+    if server.token and not os.environ.get("ONEBOT_ACCESS_TOKEN", "").strip():
+        os.environ["ONEBOT_ACCESS_TOKEN"] = server.token
+        sources["ONEBOT_ACCESS_TOKEN"] = "NapCat 配置"
+    return sources
 
 
 def described() -> list[tuple[str, str]]:

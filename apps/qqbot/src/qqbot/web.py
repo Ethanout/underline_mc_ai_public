@@ -39,8 +39,17 @@ reply_max_tokens = int(os.environ.get("QQBOT_REPLY_MAX_TOKENS", "220"))
 reply_context_chars = int(os.environ.get("QQBOT_REPLY_CONTEXT_CHARS", "3000"))
 
 
+DEFAULT_ONEBOT_ENDPOINT = "http://127.0.0.1:3000"
+DEFAULT_WEB_PORT = 18787
+
+
+def onebot_endpoint() -> str:
+    """NapCat's HTTP API; filled from NapCat's config when ``NAPCAT_DIR`` is set."""
+    return os.environ.get("ONEBOT_ENDPOINT", "").strip() or DEFAULT_ONEBOT_ENDPOINT
+
+
 class JobRequest(BaseModel):
-    endpoint: str = Field(default="http://127.0.0.1:3000")
+    endpoint: str = Field(default_factory=onebot_endpoint)
     group_id: str = Field(min_length=1, max_length=32)
     output: str = Field(default="runtime/private/qq_group_digest", min_length=1, max_length=500)
     action: str = Field(default="get_essence_msg_list", min_length=1, max_length=100)
@@ -125,6 +134,7 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "token_configured": str(bool(os.environ.get("ONEBOT_ACCESS_TOKEN"))).lower(),
+        "onebot_endpoint": onebot_endpoint(),
         "observation_mode": "true",
     }
 
@@ -209,7 +219,7 @@ def reply_to_group(event: dict[str, Any], text: str) -> None:
             recent_context=event_journal.recent_context(context.group_id, reply_context_chars),
         )
         result = exporter.api_call(
-            "http://127.0.0.1:3000",
+            onebot_endpoint(),
             os.environ.get("ONEBOT_ACCESS_TOKEN"),
             "send_group_msg",
             {"group_id": context.group_id, "message": answer},
@@ -245,10 +255,20 @@ def get_job(job_id: str) -> dict[str, Any]:
         return dict(job)
 
 
+def web_host() -> str:
+    return os.environ.get("QQBOT_WEB_HOST", "").strip() or "127.0.0.1"
+
+
+def web_port() -> int:
+    # Not 8787: on Windows with Hyper-V/WSL that port often sits in an excluded
+    # range and binding fails with WinError 10013.
+    return int(os.environ.get("QQBOT_WEB_PORT", "").strip() or DEFAULT_WEB_PORT)
+
+
 def main() -> None:
     import uvicorn
 
-    uvicorn.run(app, host=os.environ.get("QQBOT_WEB_HOST", "127.0.0.1"), port=int(os.environ.get("QQBOT_WEB_PORT", "8787")))
+    uvicorn.run(app, host=web_host(), port=web_port())
 
 
 if __name__ == "__main__":

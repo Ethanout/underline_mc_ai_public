@@ -19,9 +19,27 @@ QQBOT_EMBED_API_KEY_FILE=D:\重要的资料\身份认证和各种key\silicon.txt
 python -m qqbot
 ```
 
+## 一键启动
+
+`.env` 里设好 `NAPCAT_DIR`（NapCat.Shell 的目录）后，双击仓库根目录的 `start_ui.bat`，或者运行：
+
+```bash
+python -m qqbot start
+```
+
+它会依次：
+
+1. 从 NapCat 的 `config/onebot11_<QQ号>.json` 读 OneBot 地址和 token。不用再抄进 `.env`。
+2. 事件 token 不存在就生成一个。
+3. 把 web 的推送地址和事件 token 写进 NapCat 的 `httpClients`，旧文件先备份成 `.bak`，没变化就不动。
+4. 先起 web。
+5. 等 web 起来了，再在新窗口起 NapCat；设了 `NAPCAT_UIN` 会快速登录。
+
+如果 NapCat 已经在跑，就不会再起一个。这时要是配置刚改过，它会提示你重开 NapCat，但不会替你杀进程，因为 NapCat 和桌面 QQ 共用同一份安装。改端口只改 `.env` 的 `QQBOT_WEB_PORT`，再启动一次就行。只想起 web 就加 `--no-napcat`。
+
 ## WebUI 后端
 
-设置 `ONEBOT_ACCESS_TOKEN` 后，在本目录运行 `python -m qqbot.web`，然后打开 `http://127.0.0.1:8787`。也可以在 editable 安装后运行 `qqbot-web`。WebUI 只接受 endpoint、已授权群号和输出目录；不会接收或展示 Token。任务状态通过 `/api/jobs/{id}` 查询，`/api/health` 只返回服务状态和是否配置 Token。
+单独起 web：在本目录运行 `python -m qqbot.web`，然后打开 `http://127.0.0.1:18787`。也可以在 editable 安装后运行 `qqbot-web`。WebUI 只接受 endpoint、已授权群号和输出目录；不会接收或展示 Token。任务状态通过 `/api/jobs/{id}` 查询，`/api/health` 只返回服务状态和是否配置 Token。
 
 ## 运行
 
