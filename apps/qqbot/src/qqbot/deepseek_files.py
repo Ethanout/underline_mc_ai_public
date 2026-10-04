@@ -36,7 +36,7 @@ class DeepSeekImageFiles:
     def __init__(self, store: Store, api_key: str, post=None, now=time.time, ttl=None):
         self.store, self.api_key, self.post, self.now = store, api_key, post, now
         self.ttl = clamp_ttl(ttl)
-        self.lock = threading.RLock()
+        self.lock = store.lock
 
     def file_id(self, path: str | Path) -> str:
         with self.lock:
@@ -46,6 +46,8 @@ class DeepSeekImageFiles:
         image = Path(path)
         if not image.is_file():
             raise FileNotFoundError("图片未缓存，不能上传")
+        if image.stat().st_size > 64 * 1024 * 1024:
+            raise ValueError("图片超过 64 MiB")
         raw = image.read_bytes()
         if len(raw) > 64 * 1024 * 1024:
             raise ValueError("图片超过 64 MiB")

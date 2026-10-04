@@ -31,6 +31,8 @@ from .tools import ToolRegistry
 from .deepseek_files import DeepSeekImageFiles
 from .admin_tools import install_admin_tools
 from .collection import install_collection_tools, model_classifier
+from .brain import Brain, BrainParameters, TurnCoordinator, model_judge, BASELINE_NAMES
+from .runtime import RuntimeSettings
 
 APP_ROOT = Path(__file__).resolve().parent
 STATIC_INDEX = APP_ROOT / "static" / "index.html"
@@ -44,11 +46,15 @@ async def lifespan(app):
     stop = threading.Event()
     worker = threading.Thread(target=background_work, args=(stop,), daemon=True, name="qqbot-maintenance")
     worker.start()
+    brain_worker = threading.Thread(target=brain_work, args=(stop,), daemon=True, name="qqbot-brain")
+    brain_worker.start()
+    recover_tasks()
     try:
         yield
     finally:
         stop.set()
         worker.join(timeout=2)
+        brain_worker.join(timeout=2)
 
 
 app = FastAPI(title="QQ Bot Exporter", version="0.1.0", lifespan=lifespan)
@@ -67,6 +73,68 @@ _style_memory_lock = threading.Lock()
 _style_memory_instance = None
 _capabilities = {}
 _agent_lock = threading.Lock()
+_brains = {}
+_brains_lock = threading.Lock()
+_inflight = set()
+
+
+def get_brain(group_id):
+    with _brains_lock:
+        runtime = RuntimeSettings(event_store)
+        baselines = {key: runtime.get("baseline_" + name) for key, name in BASELINE_NAMES.items()}
+        params = BrainParameters(
+            proactive_groups=tuple(g.strip() for g in os.environ.get("QQBOT_PROACTIVE_GROUPS", "").split(",") if g.strip()),
+            proactive_min_gap=runtime.get("proactive_min_gap"),
+            proactive_max_per_hour=int(runtime.get("proactive_max_per_hour")),
+            active_min=runtime.get("active_min_seconds"), active_max=runtime.get("active_max_seconds"),
+            profile_half_life=float(os.environ.get("QQBOT_PROFILE_HALF_LIFE", "2592000")),
+            emotion_half_life=float(os.environ.get("QQBOT_EMOTION_HALF_LIFE", "1800")),
+            mention_weight=float(os.environ.get("QQBOT_MENTION_WEIGHT", "3")),
+            pickup_scale=float(os.environ.get("QQBOT_PICKUP_SCALE", ".01")))
+        if group_id not in _brains:
+            brain = Brain(event_store, group_id, baselines=baselines, parameters=params)
+            if event_store.get_state("brain:" + group_id) is None:
+                brain.rebuild_profile(event_store.messages(group_id))
+            _brains[group_id] = brain
+        brain = _brains[group_id]
+        brain.baselines, brain.params = baselines, params
+        return brain
+
+
+def recover_tasks():
+    for task in event_store.rows("SELECT * FROM tasks WHERE status IN ('queued','running','completed')"):
+        row = event_store.message(task["group_id"], task["trigger_id"])
+        if row:
+            event = json.loads(row["raw"])
+            executor.submit(reply_to_group, event, addressed_text(event) or "继续任务", task, task["id"].startswith("proactive:"))
+
+
+def brain_work(stop):
+    last_tick = 0
+    while not stop.wait(1):
+        now = time.time()
+        with _brains_lock:
+            brains = list(_brains.values())
+        for brain in brains:
+            if now - last_tick >= 20:
+                brain.tick()
+            if brain.clock() >= brain.active_until or not brain.judgment_due() or not brain.can_proactively_speak():
+                continue
+            with _brains_lock:
+                if brain.group_id in _inflight: continue
+            rows = [r for r in event_store.messages(brain.group_id) if not r["is_bot"]]
+            if not rows: continue
+            row = rows[-1]
+            event = json.loads(row["raw"])
+            task = event_store.create_task(brain.group_id, row["user_id"], f"proactive:{brain.version}", row["nickname"])
+            if task["status"] in {"skipped", "failed", "sent"}:
+                brain.pending = []
+                brain.save()
+                continue
+            event_store.write("UPDATE tasks SET trigger_id=? WHERE id=?", (row["message_id"], task["id"]))
+            task = event_store.task(task["id"])
+            executor.submit(reply_to_group, event, "参与讨论", task, True)
+        if now - last_tick >= 20: last_tick = now
 
 
 def _onebot(action, params):
@@ -296,26 +364,46 @@ def handle_event(event: dict[str, Any]) -> dict[str, Any]:
             str(event.get("group_id", "")), "".join(s.get("data", {}).get("text", "") for s in event.get("message", []) if isinstance(s, dict) and s.get("type") == "text"))
     if accepted and image_segments(event):
         # QQ image links expire within hours; copy them now, not at ingestion.
-        image_executor.submit(image_cache.fetch_event, event)
+        image_executor.submit(cache_and_summarize, event)
     text = addressed_text(event)
+    if accepted and str(event.get("user_id", "")) not in {"self", str(event.get("self_id", ""))}:
+        brain = get_brain(str(event.get("group_id", "")))
+        brain.event(mentioned=text is not None, question_count=1 if text is not None else 0,
+                    timestamp=float(event.get("time") or time.time()))
     if accepted and text is not None:
-        executor.submit(reply_to_group, event, text)
+        sender = event.get("sender") or {}
+        task = event_store.create_task(str(event.get("group_id", "")), str(event.get("user_id", "")),
+            str(event.get("message_id") or EventJournal.event_key(event)), sender.get("nickname", ""))
+        executor.submit(reply_to_group, event, text, task)
     # NapCat reads this body as a "quick operation"; keep it free of keys such
     # as reply/ban/kick so nothing here is ever acted on.
     return {"ok": True, "accepted": accepted, "reply_queued": accepted and text is not None}
 
 
-def reply_to_group(event: dict[str, Any], text: str) -> None:
+def cache_and_summarize(event):
+    image_cache.fetch_event(event)
+    key = os.environ.get("DEEPSEEK_API_KEY", "")
+    model = os.environ.get("QQBOT_MODEL", "deepseek-flash")
+    if key and _capabilities.get(model, {}).get("images"):
+        files = DeepSeekImageFiles(event_store, key)
+        files.summarize(event, image_cache, make_post(key), model)
+
+
+def reply_to_group(event: dict[str, Any], text: str, task=None, proactive=False) -> None:
     context = ReplyContext(str(event.get("group_id", "")), str(event.get("user_id", "")), text)
-    if reply_policy.respond(context) is None:
+    if not proactive and (not task or task["status"] == "queued") and reply_policy.respond(context) is None:
+        if task: event_store.update_task(task["id"], "skipped", "回复冷却")
         return
-    key_path = os.environ.get("DEEPSEEK_KEY_FILE", "")
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
-    if not api_key and key_path and Path(key_path).exists():
-        api_key = Path(key_path).read_text(encoding="utf-8").strip()
     if not api_key:
+        if task: event_store.update_task(task["id"], "failed", "未配置 DeepSeek API key")
         print("群回复跳过：未配置 DEEPSEEK_API_KEY")
         return
+    with _brains_lock:
+        if context.group_id in _inflight:
+            # Mentioned requests remain queued and recoverable.
+            return
+        _inflight.add(context.group_id)
     try:
         sender = event.get("sender") if isinstance(event.get("sender"), dict) else {}
         sender_context = (
@@ -337,7 +425,7 @@ def reply_to_group(event: dict[str, Any], text: str) -> None:
             except Exception as exc:  # noqa: BLE001
                 print(f"风格检索失败（不影响回复）：{exc}")
         trigger_id = str(event.get("message_id", EventJournal.event_key(event)))
-        task = event_store.create_task(context.group_id, context.user_id, trigger_id,
+        task = task or event_store.create_task(context.group_id, context.user_id, trigger_id,
             sender.get("nickname") or sender.get("card") or context.user_id)
         if task["status"] == "sent":
             return
@@ -354,36 +442,50 @@ def reply_to_group(event: dict[str, Any], text: str) -> None:
         install_admin_tools(registry)
         install_collection_tools(registry, model_classifier(post))
         agent = Agent(event_store, registry, post, model=model,
-            max_rounds=int(os.environ.get("QQBOT_TOOL_ROUNDS", "3")), max_tokens=reply_max_tokens,
+            max_rounds=int(os.environ.get("QQBOT_TOOL_ROUNDS", "3")), max_tokens=int(RuntimeSettings(event_store).get("reply_max_tokens")),
             capabilities=_capabilities.get(model, event_store.get_state("capabilities:" + model, {})),
             use_langgraph=True)
         parts = []
         if image_segments(event):
             parts = view_images(event)["images"]
             files.summarize(event, image_cache, post, model)
-        messages = prompt_messages(event_store.transcript(context.group_id, max_chars=reply_context_chars, trigger_id=trigger_id),
-            style_notes=style_ctx, now=time.strftime("%Y-%m-%d %H:%M:%S"),
-            instruction=sender_context, images=parts)
-        with _agent_lock:
-            answer = agent.run(task, messages)
-        result = exporter.api_call(
-            onebot_endpoint(),
-            os.environ.get("ONEBOT_ACCESS_TOKEN"),
-            "send_group_msg",
-            {"group_id": context.group_id, "message": answer},
-            False,
-        )
-        message_id = str(result.get("message_id")) if isinstance(result, dict) and result.get("message_id") else None
-        trigger_id = event.get("message_id")
-        event_journal.append_bot_message(
-            context.group_id,
-            answer,
-            message_id,
-            reply_to=str(trigger_id) if trigger_id is not None else None,
-        )
-        event_store.update_task(task["id"], "sent", answer)
+        brain = get_brain(context.group_id)
+        judge_model = os.environ.get("QQBOT_JUDGE_MODEL", "deepseek-flash")
+        judge = model_judge(post, model=judge_model,
+            capabilities=_capabilities.get(judge_model, event_store.get_state("capabilities:" + judge_model, {})),
+            audit=lambda result: event_store.audit(task, "judge", {}, result))
+        transcript = lambda: event_store.transcript(context.group_id, max_chars=reply_context_chars, trigger_id=trigger_id)
+        def generate(current, regenerate):
+            messages = prompt_messages(current,
+                style_notes=event_store.get_state("style_notes:" + context.group_id, "TODO(人工调)：风格笔记"),
+                emotions=brain.prompt_suffix(), now=time.strftime("%Y-%m-%d %H:%M:%S"),
+                instruction=sender_context + "\n相似句语气参考：\n" + style_ctx, images=parts)
+            return agent.regenerate(task, messages) if regenerate else agent.run(task, messages)
+        def send(answer, reply_to):
+            # A crash after sending has an unknown result; do not resend automatically.
+            event_store.update_task(task["id"], "sending", answer)
+            message = [{"type": "reply", "data": {"id": str(reply_to)}}, {"type": "text", "data": {"text": answer}}] if reply_to else answer
+            result = _onebot("send_group_msg", {"group_id": context.group_id, "message": message})
+            message_id = str(result.get("message_id")) if isinstance(result, dict) and result.get("message_id") else None
+            event_journal.append_bot_message(context.group_id, answer, message_id, reply_to=trigger_id)
+            event_store.update_task(task["id"], "sent", answer)
+        result = TurnCoordinator(brain, judge).respond(transcript, generate, send, mentioned=not proactive)
+        if not result["sent"]: event_store.update_task(task["id"], "skipped", result["why"])
     except Exception as exc:
-        print(f"群回复失败：{exc}")
+        if task and event_store.task(task["id"])["status"] != "sending":
+            event_store.update_task(task["id"], "failed", str(exc))
+        print(f"群回复失败：{type(exc).__name__}")
+    finally:
+        with _brains_lock:
+            _inflight.discard(context.group_id)
+        queued = event_store.rows("SELECT * FROM tasks WHERE group_id=? AND status='queued' ORDER BY updated LIMIT 1", (context.group_id,))
+        if queued:
+            next_task = queued[0]
+            row = event_store.message(next_task["group_id"], next_task["trigger_id"])
+            if row:
+                source = json.loads(row["raw"])
+                executor.submit(reply_to_group, source, addressed_text(source) or "参与讨论", next_task,
+                                ":proactive:" in next_task["id"])
 
 
 @app.post("/api/jobs")

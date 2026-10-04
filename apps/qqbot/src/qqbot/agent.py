@@ -139,3 +139,11 @@ class Agent:
         with SqliteSaver.from_conn_string(checkpoint_path) as saver:
             return graph.compile(checkpointer=saver).invoke({"answer": ""},
                 {"configurable": {"thread_id": task["id"]}})["answer"]
+
+    def regenerate(self, task, messages):
+        # Tools already ran for this task. New chat context only changes its reply.
+        message = self._request(task, messages, [])
+        answer = str(message.get("content") or "")
+        if not answer: raise RuntimeError("重生成没有返回正文")
+        self.store.update_task(task["id"], "completed", answer)
+        return answer
