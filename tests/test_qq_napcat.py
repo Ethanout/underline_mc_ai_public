@@ -130,6 +130,44 @@ class MaiBotWebSocketTests(unittest.TestCase):
                     start.maibot_ws_port()
 
 
+class MaiBotLaunchTests(unittest.TestCase):
+    def test_launch_uses_maibot_venv_in_its_own_folder(self):
+        from qqbot import maibot
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "bot.py").write_text("", encoding="utf-8")
+            (root / ".venv" / "Scripts").mkdir(parents=True)
+            (root / ".venv" / "Scripts" / "python.exe").write_bytes(b"")
+            with mock.patch.object(maibot.subprocess, "Popen") as popen:
+                maibot.launch(root)
+            command = popen.call_args.args[0]
+            self.assertEqual(command[:6], ["cmd", "/c", "chcp", "65001", ">nul", "&&"])
+            self.assertEqual(command[6:8], [str(root.resolve() / ".venv" / "Scripts" / "python.exe"), "bot.py"])
+            self.assertEqual(popen.call_args.kwargs["cwd"], root.resolve())
+
+    def test_missing_bot_py_is_reported(self):
+        from qqbot import maibot
+
+        with TemporaryDirectory() as directory:
+            with self.assertRaises(FileNotFoundError):
+                maibot.launch_command(Path(directory))
+
+    def test_start_skips_when_running_or_unset(self):
+        from qqbot import maibot, start
+
+        with TemporaryDirectory() as directory,                 mock.patch.object(maibot, "launch") as launch,                 mock.patch("builtins.print"):
+            with mock.patch.dict(os.environ, {}, clear=True):
+                start.start_maibot()
+            launch.assert_not_called()
+            with mock.patch.dict(os.environ, {"MAIBOT_DIR": directory}),                     mock.patch.object(start, "port_answers", return_value=True):
+                start.start_maibot()
+            launch.assert_not_called()
+            with mock.patch.dict(os.environ, {"MAIBOT_DIR": directory}),                     mock.patch.object(start, "port_answers", return_value=False):
+                start.start_maibot()
+            launch.assert_called_once_with(Path(directory))
+
+
 class PluginTokenTests(unittest.TestCase):
     def test_plugin_token_only_exists_once_maibot_is_configured(self):
         with TemporaryDirectory() as directory:
@@ -211,13 +249,35 @@ class SettingsTests(unittest.TestCase):
 
 
 class LaunchTests(unittest.TestCase):
+    def test_remember_login_preserves_original_and_is_idempotent(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "napcat.mjs"
+            original = 'async function login(s) {\n  s.initConfig({machineId: "", commonPath: "data", externalVersion: !1});\n}\n'
+            path.write_text(original, encoding="utf-8")
+            self.assertTrue(napcat.enable_login_persistence(root))
+            self.assertIn("s.setRemerberPwd(true);", path.read_text(encoding="utf-8"))
+            self.assertEqual(path.with_suffix(".mjs.before-remember-login.bak").read_text(encoding="utf-8"), original)
+            self.assertFalse(napcat.enable_login_persistence(root))
+
+    def test_unknown_initializer_is_reported_without_changing_vendor_file(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "napcat.mjs"
+            path.write_text("unexpected initializer", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                napcat.enable_login_persistence(root)
+            self.assertEqual(path.read_text(encoding="utf-8"), "unexpected initializer")
+
     def test_console_switches_to_utf8_before_napcat(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "NapCatWinBootMain.exe").write_bytes(b"")
             with mock.patch.object(napcat, "find_qq_exe", return_value=Path("C:/QQ/QQ.exe")), \
+                    mock.patch.object(napcat, "enable_login_persistence") as remember_login, \
                     mock.patch.object(napcat.subprocess, "Popen") as popen:
                 napcat.launch(root, "123")
+            remember_login.assert_called_once_with(root.resolve())
             command = popen.call_args.args[0]
             self.assertEqual(command[:6], ["cmd", "/c", "chcp", "65001", ">nul", "&&"])
             self.assertEqual(command[6], str(root.resolve() / "NapCatWinBootMain.exe"))

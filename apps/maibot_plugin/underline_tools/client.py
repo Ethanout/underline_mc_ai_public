@@ -92,6 +92,8 @@ def format_result(result: dict[str, Any], limit: int = MAX_RESULT_CHARS) -> str:
     for row in result.get("results", []):
         if row.get("label") == "聊天":
             lines.append(f"[聊天 #{row.get('message_id')}] {_speaker(row)}：{_clip(_text(row))}")
+        elif row.get("title"):
+            lines.append(f"[{row.get('label')}：{row.get('title')}，{(row.get('sources') or ['?'])[0]}] {_clip(row.get('content'), 900)}")
         else:
             sources = "、".join(str(s) for s in row.get("sources") or []) or "无"
             lines.append(f"[{row.get('label')}，来源 {sources}] {_clip(row.get('content'), 600)}")

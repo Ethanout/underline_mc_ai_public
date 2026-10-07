@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -222,6 +223,31 @@ def find_qq_exe() -> Path:
     raise FileNotFoundError("找不到 QQ.exe，在 .env 里用 NAPCAT_QQ_PATH 指定")
 
 
+def enable_login_persistence(directory: Path) -> bool:
+    """Enable QQ's remember-login setting in the NapCat login initializer."""
+    path = directory / "napcat.mjs"
+    source = path.read_text(encoding="utf-8")
+    marker = "// qqbot: persist login credentials"
+    if marker in source:
+        return False
+    pattern = re.compile(
+        r"(?P<service>[\w$]+)\.initConfig\(\{[^{}]*\bmachineId:[^{}]*"
+        r"\bcommonPath:[^{}]*\bexternalVersion:\s*(?:!1|false)[^{}]*\}\);"
+    )
+    matches = list(pattern.finditer(source))
+    if len(matches) != 1:
+        raise ValueError("当前 NapCat 登录初始化格式无法识别，未修改文件。请检查 NapCat 版本。")
+    match = matches[0]
+    insertion = f"\n  {marker}\n  {match['service']}.setRemerberPwd(true);"
+    backup = path.with_suffix(path.suffix + ".before-remember-login.bak")
+    if not backup.exists():
+        shutil.copy2(path, backup)
+    partial = path.with_suffix(path.suffix + ".part")
+    partial.write_text(source[:match.end()] + insertion + source[match.end():], encoding="utf-8")
+    os.replace(partial, path)
+    return True
+
+
 def launch(directory: Path, uin: str = "") -> subprocess.Popen:
     """Start NapCat in its own console window.  ``uin`` enables quick login.
 
@@ -233,6 +259,8 @@ def launch(directory: Path, uin: str = "") -> subprocess.Popen:
     if not boot.is_file():
         raise FileNotFoundError(f"没找到 {boot}，NAPCAT_DIR 是 NapCat.Shell 的目录吗？")
     qq = find_qq_exe()
+    if uin:
+        enable_login_persistence(directory)
     main_path = (directory / "napcat.mjs").as_posix()
     load_path = directory / "loadNapCat.js"
     load_path.write_text(f'(async () => {{await import("file:///{main_path}")}})()\n', encoding="utf-8")

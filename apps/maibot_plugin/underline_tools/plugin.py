@@ -81,8 +81,10 @@ class UnderlineToolsPlugin(MaiBotPlugin):
     @Tool(
         "underline_search_knowledge",
         description=(
-            "查本群的数据包/指令技巧库和聊天记录。技巧库条目是 AI 整理、未验证的，"
-            "转述时要说明；结果带消息编号和来源，只说查到的内容，没查到就说没查到。"
+            "查数据包/mcfunction/命令相关资料：本群技巧库、Underline 的平行线教程和文档、"
+            "mcfunction 笔记、存下来的中文 Wiki，以及群聊天记录。技巧库和人工整理条目未经实测，"
+            "转述时要说明；结果带来源，只说查到的内容，没查到就说没查到。关键词用空格分开，"
+            "比如“右键检测”“宏 缓存”“execute positioned”。"
         ),
         parameters=[
             ToolParameterInfo(

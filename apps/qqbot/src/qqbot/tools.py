@@ -6,6 +6,7 @@ import json
 import os
 from dataclasses import dataclass
 
+from . import docs
 from .store import dumps
 
 
@@ -24,7 +25,7 @@ DESCRIPTIONS = {
     "read_forward": "读本群出现过的合并转发。",
     "read_essence": "读本群的精华消息列表。",
     "view_image": "看某条消息里的图片。",
-    "search_knowledge": "查本群的数据包技巧库，再查聊天记录。技巧是 AI 整理、未验证的。",
+    "search_knowledge": "查本群的数据包技巧库、Underline 的教程和 mcfunction 资料，再查聊天记录。技巧是 AI 整理、未验证的。",
     "collect_tricks": "把一段聊天、一条合并转发或精华里的数据包技术内容收进技巧库（管理员）。",
     "read_file": "读本机文件（管理员）。配置和密钥文件读不了。",
     "write_file": "写本机文件（管理员）。",
@@ -333,7 +334,7 @@ class ToolRegistry:
         }
 
     def search_knowledge(self, task, args):
-        """The group's trick library, then its chat history, for 1-3 keywords."""
+        """The group's trick library, Underline's docs, then chat history, for 1-3 keywords."""
         queries = args.get("queries", [])
         if not isinstance(queries, list) or not 1 <= len(queries) <= 3:
             raise ValueError("检索需要 1–3 条关键词")
@@ -353,6 +354,9 @@ class ToolRegistry:
                     "sources": json.loads(row["sources"]),
                     "date": row["updated"],
                 }
+        for query in queries:
+            for row in docs.library().search(query, limit=4):
+                hits.setdefault(row["id"], row)
         for query in queries:
             for row in self.search_chat(task, {"keyword": query})["messages"]:
                 hits[row["id"]] = {**row, "label": "聊天", "date": row["ts"]}
