@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>毯毯 · 端管理</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,"Microsoft YaHei",sans-serif;color:#182337;background:#f4f6f9;line-height:1.6}*{box-sizing:border-box}body{margin:0}main{max-width:1120px;margin:auto;padding:36px 24px 70px}header{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}h1{font-size:28px;margin:0}h2{font-size:20px;margin:0 0 12px}h3{margin:0;font-size:18px}.subtle{color:#657187;font-size:14px}nav{display:flex;gap:18px;flex-wrap:wrap}a{color:#285ebd;text-decoration:none}a:hover{text-decoration:underline}.bar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:28px 0 16px;flex-wrap:wrap}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}.card,.panel{background:white;border:1px solid #e0e5ee;border-radius:14px;padding:22px}.card{display:flex;flex-direction:column;gap:12px}.cardtop{display:flex;justify-content:space-between;align-items:start;gap:12px}.badge{display:inline-block;border-radius:20px;background:#eef1f6;color:#58657a;padding:3px 10px;font-size:12px;white-space:nowrap}.badge.online{background:#e6f5ec;color:#227348}.badge.error{background:#fff0ed;color:#ab392a}.badge.pending{background:#fff6df;color:#88610a}.details{font-size:14px;overflow-wrap:anywhere}.errorline{color:#ab392a;font-size:13px;overflow-wrap:anywhere}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:auto}button{border:1px solid #d6deea;border-radius:8px;background:white;color:#243450;padding:9px 15px;cursor:pointer;font:inherit;font-size:14px}button:hover{background:#f1f5fc}button:disabled{opacity:.6;cursor:wait}.primary{background:#285ebd;color:white;border-color:#285ebd}.primary:hover{background:#214e9d}.panel{margin-top:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 24px}label{display:block;font-size:14px;margin-bottom:5px}input:not([type=checkbox]),textarea{display:block;width:100%;padding:10px;border:1px solid #ccd5e3;border-radius:7px;font:inherit;font-size:14px;background:#fff}textarea{resize:vertical;min-height:76px}.checks{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}.checks label{display:flex;gap:9px;align-items:start;margin:0}input[type=checkbox]{margin-top:6px}.notice{background:#edf3fc;border-radius:10px;padding:14px 18px;font-size:14px;margin-top:22px}.notice p{margin:4px 0}.feedback{min-height:25px;margin-top:12px;font-size:14px;white-space:pre-wrap}small{color:#657187}.empty{color:#657187;font-size:14px;padding:16px 0}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}[hidden]{display:none!important}@media(max-width:640px){main{padding:24px 16px}.grid,.checks{grid-template-columns:1fr}.cards{grid-template-columns:1fr}h1{font-size:24px}}
+</style>
+<script src="/static/endpoints.js" defer></script>
+</head>
+<body><main>
+<header><div><div class="subtle">UNDERLINE / 毯毯</div><h1>机器人端管理</h1><div class="subtle">同一套 AI 与知识工具，独立管理每个接入端。</div></div>
+<nav aria-label="管理导航"><a id="maibot-link" href="http://127.0.0.1:8001" target="_blank" rel="noreferrer">麦麦 · 人格与模型 ↗</a><a href="/exports">资料与备份 →</a></nav></header>
+<div class="notice"><p><strong>现有 NapCat 接入保留。</strong>新增官方端使用 AppID 与 AppSecret，不依赖个人 QQ 扫码登录。</p><p>官方端的群和用户使用 OpenID，与原来的群号、QQ 号不同。会话与群记忆独立保存，共用现有模型和公开知识工具。</p></div>
+<div class="bar"><h2>接入端</h2><div><button id="refresh" type="button">刷新状态</button> <button id="add" class="primary" type="button">＋ 添加官方机器人</button></div></div>
+<div id="global-status" class="feedback" role="status" aria-live="polite">正在读取接入状态…</div>
+<div id="cards" class="cards"></div>
+<section id="editor" class="panel" hidden aria-labelledby="editor-title">
+<h2 id="editor-title">添加官方机器人</h2>
+<form id="official-form">
+<div class="grid">
+<div><label for="name">端名称</label><input id="name" name="name" required maxlength="80" value="毯毯 · 官方 QQ"></div>
+<div><label for="app-id">AppID</label><input id="app-id" name="app_id" inputmode="numeric" pattern="[0-9]+" maxlength="32" placeholder="在 QQ 开放平台创建应用后获取"></div>
+<div><label for="app-secret">AppSecret</label><input id="app-secret" name="app_secret" type="password" autocomplete="new-password" maxlength="256"><small id="secret-note">保存在本机服务数据库中，管理页面不会回显。</small></div>
+<div><label for="groups">允许群 OpenID</label><textarea id="groups" name="groups" placeholder="每行一个；留空允许机器人已加入的全部群"></textarea></div>
+<div><label for="private-users">允许私聊用户 OpenID</label><textarea id="private-users" name="private_users" placeholder="每行一个；开启私聊后，留空不限制用户"></textarea></div>
+<div><label for="group-bindings">同群旧资料绑定（JSON）</label><textarea id="group-bindings" name="group_bindings" placeholder='{"群OpenID":"旧群号"}'></textarea><small>绑定同一群的旧知识与已保存聊天，只增加查询范围。</small></div>
+<div><label for="knowledge-groups">额外共享知识来源（JSON）</label><textarea id="knowledge-groups" name="knowledge_groups" placeholder='{"群OpenID":["来源群号"]}'></textarea><small>仅共享已整理知识，保留来源群；不开放来源群的原始聊天或写入权限。</small></div>
+</div>
+<div class="checks">
+<label><input type="checkbox" name="enabled">启用这个接入端</label>
+<label><input type="checkbox" name="receive_all">接收非 @ 群消息（还需在官方平台开启“接收所有消息”）</label>
+<label><input type="checkbox" name="allow_private">允许私聊</label>
+<label><input type="checkbox" name="allow_proactive">允许主动发言（受官方权限、配额和麦麦回复规则限制）</label>
+</div>
+<small>首版支持群聊、私聊、文字与图片收发；GIF 表情发送为首帧图片。引用和合并聊天按官方事件提供的内容读取。精华与群文件全量备份继续使用 NapCat。</small>
+<div class="actions" style="margin-top:18px"><button class="primary" type="submit">保存配置</button><button id="cancel" type="button">取消</button><a href="https://bot.q.qq.com/open" target="_blank" rel="noreferrer">QQ 开放平台 ↗</a></div>
+<div id="editor-status" class="feedback" role="status"></div>
+</form></section>
+<section class="panel"><h2>连接与数据</h2><p class="subtle">保存后，麦麦官方适配器约 10 秒内应用配置。连接状态显示“在线”才表示官方鉴权和网关连接成功。停用 NapCat 端只停止麦麦的该适配器，不退出 QQ，也不清理登录缓存。</p><p class="subtle">切换接入方式不会自动合并群或人物身份。旧知识和聊天记录保留；官方端不把 OpenID 推测成 QQ 号，也不会继承原账号的管理员权限。</p></section>
+</main></body></html>
