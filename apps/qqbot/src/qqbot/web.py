@@ -28,6 +28,7 @@ from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import essence_exporter as exporter
@@ -37,7 +38,10 @@ from .collection import install_collection_tools, model_classifier
 from .deepseek import probe_capabilities
 from .deepseek_files import DeepSeekImageFiles
 from .events import EventJournal
+from .endpoint_routes import make_endpoint_router
+from .group_files import GroupFiles, install_group_file_tools
 from .images import DEFAULT_IMAGE_DIR, ImageCache, image_segments
+from .research import ResearchLibrary, install_research_tools
 from .store import Store
 from .tools import ToolRegistry, admin_ids
 
@@ -50,8 +54,9 @@ jobs_lock = threading.Lock()
 
 # ``/毯 <要做的事>``.  ``/毯毯`` and ``/毯子`` are ordinary chat, not the command.
 TASK_COMMAND = re.compile(r"^\s*/毯(?![\w毯])\s*(?P<request>[\s\S]*)$")
-# Read-only tools MaiBot's planner may call through the plugin.
-PLUGIN_TOOLS = ("search_knowledge", "search_chat", "read_essence")
+# The plugin may append sourced, unverified research, but gets no host-account tools.
+PLUGIN_TOOLS = ("search_knowledge", "search_chat", "read_essence", "research_search",
+                "research_read", "save_research", "recall_work", "list_group_files")
 MAX_ANSWER_CHARS = 3000
 
 
@@ -73,6 +78,7 @@ async def lifespan(app):
 
 
 app = FastAPI(title="QQ Bot", version="0.2.0", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory=APP_ROOT / "static"), name="static")
 
 
 @app.middleware("http")
@@ -138,9 +144,18 @@ def probe_models():
 
 
 def background_work(stop):
+    from .history_recovery import recover_history
+    history_due = 0
     interval_minutes = float(os.environ.get("QQBOT_ESSENCE_SYNC_MINUTES", "60"))
     due = time.time() + interval_minutes * 60
     while not stop.wait(20):
+        if time.time() >= history_due:
+            try:
+                recover_history(event_store, event_journal, _onebot, sorted(known_groups()),
+                                int(os.environ.get("QQBOT_HISTORY_MAX_PAGES", "20")))
+            except Exception as exc:
+                event_store.set_state("maintenance:history", {"error": str(exc), "at": time.time()})
+            history_due = time.time() + max(20, int(os.environ.get("QQBOT_HISTORY_SYNC_SECONDS", "60")))
         if interval_minutes <= 0 or time.time() < due:
             continue
         try:
@@ -178,7 +193,10 @@ def known_groups() -> set[str]:
     groups = configured_groups()
     if groups:
         return groups
-    return {row["group_id"] for row in event_store.rows("SELECT DISTINCT group_id FROM messages")}
+    return {
+        row["group_id"] for row in event_store.rows("SELECT DISTINCT group_id FROM messages")
+        if re.fullmatch(r"\d+", str(row["group_id"]))
+    }
 
 
 def group_allowed(group_id: str) -> bool:
@@ -254,6 +272,8 @@ def build_registry(api_key: str, post) -> ToolRegistry:
     registry = ToolRegistry(event_store, _onebot, image_view=view_images)
     install_admin_tools(registry)
     install_collection_tools(registry, model_classifier(post))
+    install_research_tools(registry)
+    install_group_file_tools(registry)
     return registry
 
 
@@ -370,15 +390,18 @@ def plugin_authorized(authorization: str) -> bool:
     )
 
 
+app.include_router(make_endpoint_router(event_store, plugin_authorized))
+
+
 class PluginToolRequest(BaseModel):
     tool: str = Field(min_length=1, max_length=64)
-    group_id: str = Field(min_length=1, max_length=32)
+    group_id: str = Field(min_length=1, max_length=160)
     args: dict[str, Any] = Field(default_factory=dict)
 
 
 @app.post("/api/plugin/tool")
 def plugin_tool(body: PluginToolRequest, request: Request) -> dict[str, Any]:
-    """Read-only lookups for MaiBot's planner.
+    """Lookups and sourced research for MaiBot's planner.
 
     MaiBot does not tell a plugin tool who in a group triggered it, so these
     calls run as an unprivileged ``maibot`` caller: member tools only, scoped
@@ -389,13 +412,87 @@ def plugin_tool(body: PluginToolRequest, request: Request) -> dict[str, Any]:
         raise HTTPException(401, "插件 token 无效")
     if body.tool not in PLUGIN_TOOLS:
         raise HTTPException(403, "这个工具不对插件开放")
-    if not re.fullmatch(r"\d+", body.group_id) or not group_allowed(body.group_id):
+    if body.group_id.startswith("official:"):
+        from .endpoints import Endpoints
+        parts = body.group_id.split(":")
+        allowed = len(parts) == 3 and all(parts) and any(
+            row["enabled"] and row["app_id"] == parts[1]
+            and (not row["groups"] or parts[2] in row["groups"])
+            for row in Endpoints(event_store).configs(private=True)
+        )
+        if not allowed:
+            raise HTTPException(403, "官方端未启用或群不在允许名单里")
+        if body.tool in {"read_essence", "list_group_files"}:
+            raise HTTPException(400, "官方端不支持实时枚举群精华或群文件；查已入库的技巧请用 underline_search_knowledge，查已保存消息请用 underline_search_chat。旧群资料需在端管理中显式绑定。")
+    elif not re.fullmatch(r"\d+", body.group_id) or not group_allowed(body.group_id):
         raise HTTPException(403, "不在服务的群列表里")
     args = {key: value for key, value in body.args.items() if key != "group_id"}
     task = event_store.create_task(body.group_id, "maibot", "maibot:" + uuid.uuid4().hex, "MaiBot")
     event_store.update_task(task["id"], "done")
-    registry = ToolRegistry(event_store, _onebot)
+    registry = ToolRegistry(event_store, None if body.group_id.startswith("official:") else _onebot)
+    install_research_tools(registry)
+    install_group_file_tools(registry)
     return registry.execute(event_store.task(task["id"]), body.tool, args)
+
+
+class GroupFileExportRequest(BaseModel):
+    group_id: str = Field(pattern=r"^\d{1,32}$")
+    file_id: str = Field(min_length=1, max_length=256)
+    folder_id: str = Field(default="", max_length=256)
+
+
+@app.get("/api/group-files")
+def group_files(group_id: str, folder_id: str = "", keyword: str = "", offset: int = 0, limit: int = 20):
+    if not re.fullmatch(r"\d{1,32}", group_id) or not group_allowed(group_id):
+        raise HTTPException(403, "不在服务的群列表里")
+    try:
+        return GroupFiles(_onebot, store=event_store).list_files({"group_id": group_id}, {
+            "folder_id": folder_id, "keyword": keyword, "offset": offset, "limit": limit})
+    except (ValueError, OSError, RuntimeError) as exc:
+        raise HTTPException(400, redact(str(exc))) from exc
+
+
+@app.post("/api/group-files/export")
+def export_group_file(body: GroupFileExportRequest):
+    """Local administrator action; never exposed by the MaiBot bridge."""
+    if not group_allowed(body.group_id):
+        raise HTTPException(403, "不在服务的群列表里")
+    task = event_store.create_task(body.group_id, "local-admin", "local-export:" + uuid.uuid4().hex)
+    args = {"file_id": body.file_id, "folder_id": body.folder_id}
+    try:
+        result = GroupFiles(_onebot, clock=event_store.clock, store=event_store).export_file(task, args)
+    except (ValueError, OSError, RuntimeError) as exc:
+        result = {"error": redact(str(exc))}
+        event_store.audit(task, "export_group_file", args, result, False)
+        event_store.update_task(task["id"], "failed", result["error"])
+        raise HTTPException(400, result["error"]) from exc
+    event_store.audit(task, "export_group_file", args, result, False)
+    event_store.update_task(task["id"], "done")
+    return {**result, "task_id": task["id"]}
+
+
+class ResearchExportRequest(BaseModel):
+    group_id: str | None = None
+    tags: list[str] | None = None
+
+
+@app.post("/api/research/export")
+def export_research(body: ResearchExportRequest):
+    """Local administrator action. This endpoint is not a group tool."""
+    try:
+        return ResearchLibrary(event_store).export_wiki(body.group_id, body.tags)
+    except (ValueError, OSError) as exc:
+        raise HTTPException(400, redact(str(exc))) from exc
+
+
+@app.get("/api/research")
+def research_items(group_id: str = "", limit: int = 100):
+    rows = event_store.rows(
+        "SELECT id,group_id,title,tags,version,verification,created,updated FROM research_knowledge "
+        "WHERE (?='' OR group_id=?) ORDER BY updated DESC LIMIT ?",
+        (group_id, group_id, max(1, min(limit, 500))),
+    )
+    return {"items": rows}
 
 
 DEFAULT_ONEBOT_ENDPOINT = "http://127.0.0.1:3000"
@@ -481,6 +578,11 @@ def run_job(job_id: str, request: JobRequest) -> None:
 
 @app.get("/", response_class=HTMLResponse)
 def index() -> str:
+    return (APP_ROOT / "static" / "endpoints.html").read_text(encoding="utf-8")
+
+
+@app.get("/exports", response_class=HTMLResponse)
+def exports_index() -> str:
     if not STATIC_INDEX.exists():
         return "<h1>QQ Bot WebUI</h1>"
     return STATIC_INDEX.read_text(encoding="utf-8")
@@ -488,12 +590,19 @@ def index() -> str:
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
+    from .connection_guard import STATE_PATH
+
+    try:
+        recovery = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        recovery = {"status": "not_started"}
     return {
         "status": "ok",
         "token_configured": str(bool(os.environ.get("ONEBOT_ACCESS_TOKEN"))).lower(),
         "plugin_token_configured": bool(os.environ.get("QQBOT_PLUGIN_TOKEN", "").strip()),
         "onebot_endpoint": onebot_endpoint(),
         "chat_engine": "maibot",
+        "connection_recovery": recovery,
         "model": task_model(),
         "capabilities": _capabilities
         or {task_model(): event_store.get_state("capabilities:" + task_model(), {})},

@@ -63,6 +63,8 @@ REPORTED_VARS: tuple[str, ...] = (
     "QQBOT_ESSENCE_SYNC_MINUTES",
     "QQBOT_WEB_HOST",
     "QQBOT_WEB_PORT",
+    "UNDERLINE_WIKI_ROOT",
+    "MCFSKILL_ROOT",
 )
 
 _loaded = False

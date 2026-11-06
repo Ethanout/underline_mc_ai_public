@@ -7,9 +7,12 @@ its WebUI port answering, so a second click does not start a second copy.
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from pathlib import Path
+from urllib.error import HTTPError
+from urllib.request import ProxyHandler, Request, build_opener
 
 DEFAULT_WEBUI_PORT = 8001
 
@@ -37,11 +40,48 @@ def launch_command(directory: Path) -> list[str]:
     return ["cmd", "/c", "chcp", "65001", ">nul", "&&", *run, "&", "pause"]
 
 
+# Domestic APIs are reachable directly; through the system proxy their
+# requests sometimes stall for tens of seconds.
+DIRECT_HOSTS = ("api.siliconflow.cn", "api.deepseek.com")
+
+
+def no_proxy(current: str) -> str:
+    """Add ``DIRECT_HOSTS`` to an existing ``NO_PROXY`` list."""
+    hosts = [h.strip() for h in current.split(",") if h.strip()]
+    hosts += [h for h in DIRECT_HOSTS if h not in hosts]
+    return ",".join(hosts)
+
+
 def launch(directory: Path) -> subprocess.Popen:
     """Open MaiBot in its own console window."""
     directory = directory.resolve()
     command = launch_command(directory)
     env = dict(os.environ)
     env["PYTHONIOENCODING"] = "utf-8"
+    env["NO_PROXY"] = no_proxy(env.get("NO_PROXY") or env.get("no_proxy", ""))
     flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
     return subprocess.Popen(command, cwd=directory, env=env, creationflags=flags)
+
+
+def webui_request(path: str, payload=None, method="GET"):
+    """Call the local MaiBot management API without exposing its session token."""
+    directory = maibot_dir()
+    if directory is None:
+        raise ValueError("未配置 MAIBOT_DIR")
+    try:
+        token = json.loads((directory / "data/webui.json").read_text(encoding="utf-8"))["access_token"]
+    except (OSError, ValueError, KeyError) as exc:
+        raise ValueError("无法读取麦麦本地管理凭证") from exc
+    request = Request(
+        f"http://127.0.0.1:{webui_port()}/api/webui" + path,
+        data=json.dumps(payload).encode() if payload is not None else None,
+        headers={"Cookie": "maibot_session=" + token, "Content-Type": "application/json"},
+        method=method,
+    )
+    try:
+        with build_opener(ProxyHandler({})).open(request, timeout=15) as response:
+            return json.loads(response.read())
+    except HTTPError as exc:
+        raise ValueError(f"麦麦管理接口返回 HTTP {exc.code}") from exc
+    except OSError as exc:
+        raise ValueError("无法连接麦麦管理接口，请确认麦麦已启动") from exc

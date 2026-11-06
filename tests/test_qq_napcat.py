@@ -58,6 +58,42 @@ class FindConfigTests(unittest.TestCase):
         self.assertIsNone(napcat.api_server(napcat_config(servers=[])))
 
 
+class LoginStartupTests(unittest.TestCase):
+    def test_webui_prevents_duplicate_launch_while_onebot_is_offline(self):
+        from qqbot import start
+
+        with mock.patch.object(start, "port_answers", side_effect=[False, True]) as ports, \
+                mock.patch.object(napcat, "webui_address", return_value=("127.0.0.1", 6099)):
+            self.assertTrue(start.napcat_running(Path("napcat"), "http://127.0.0.1:3000"))
+        self.assertEqual(ports.call_args_list, [mock.call("127.0.0.1", 3000), mock.call("127.0.0.1", 6099)])
+
+    def test_no_listener_allows_launch(self):
+        from qqbot import start
+
+        with mock.patch.object(start, "port_answers", return_value=False), \
+                mock.patch.object(napcat, "webui_address", return_value=("127.0.0.1", 6099)):
+            self.assertFalse(start.napcat_running(Path("napcat"), "http://127.0.0.1:3000"))
+
+    def test_login_settings_keep_credentials_and_other_options(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "config").mkdir()
+            webui = root / "config" / "webui.json"
+            webui.write_text(json.dumps({"token": "secret", "port": 6099, "autoLoginAccount": ""}), encoding="utf-8")
+            runtime = root / "config" / "napcat_123.json"
+            runtime.write_text(json.dumps({"fileLog": False, "bypass": {"unchanged": True}}), encoding="utf-8")
+            with mock.patch.object(napcat, "enable_login_persistence", return_value=False):
+                self.assertTrue(napcat.sync_login_settings(root, "123"))
+                self.assertFalse(napcat.sync_login_settings(root, "123"))
+            saved_webui = json.loads(webui.read_text(encoding="utf-8"))
+            self.assertEqual(saved_webui["token"], "secret")
+            self.assertEqual(saved_webui["autoLoginAccount"], "123")
+            saved_runtime = json.loads(runtime.read_text(encoding="utf-8"))
+            self.assertTrue(saved_runtime["fileLog"])
+            self.assertEqual(saved_runtime["fileLogLevel"], "info")
+            self.assertEqual(saved_runtime["bypass"], {"unchanged": True})
+
+
 class SyncTests(unittest.TestCase):
     def test_sync_adds_client_then_is_idempotent(self):
         with TemporaryDirectory() as directory:
@@ -145,6 +181,15 @@ class MaiBotLaunchTests(unittest.TestCase):
             self.assertEqual(command[:6], ["cmd", "/c", "chcp", "65001", ">nul", "&&"])
             self.assertEqual(command[6:8], [str(root.resolve() / ".venv" / "Scripts" / "python.exe"), "bot.py"])
             self.assertEqual(popen.call_args.kwargs["cwd"], root.resolve())
+            self.assertIn("api.siliconflow.cn", popen.call_args.kwargs["env"]["NO_PROXY"].split(","))
+
+    def test_no_proxy_keeps_existing_hosts(self):
+        from qqbot import maibot
+
+        self.assertEqual(
+            maibot.no_proxy("127.0.0.1,localhost,api.deepseek.com"),
+            "127.0.0.1,localhost,api.deepseek.com,api.siliconflow.cn",
+        )
 
     def test_missing_bot_py_is_reported(self):
         from qqbot import maibot

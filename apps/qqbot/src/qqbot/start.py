@@ -17,6 +17,7 @@ import os
 import socket
 import threading
 import time
+from pathlib import Path
 from urllib.parse import urlparse
 
 from . import maibot, napcat
@@ -59,6 +60,15 @@ def event_url(host: str, port: int) -> str:
     if host in ("0.0.0.0", "::", ""):
         host = "127.0.0.1"
     return f"http://{host}:{port}/api/onebot/event"
+
+
+def napcat_running(directory: Path, endpoint: str) -> bool:
+    """Avoid a second QQ login when the first instance is still offline."""
+    api = urlparse(endpoint)
+    if port_answers(api.hostname or "127.0.0.1", api.port or 80):
+        return True
+    host, port = napcat.webui_address(directory)
+    return port_answers(host, port)
 
 
 def sync_napcat() -> tuple[bool, str]:
@@ -149,18 +159,22 @@ def main(argv: list[str] | None = None) -> int:
     else:
         try:
             changed, uin = sync_napcat()
+            changed = napcat.sync_login_settings(directory, uin) or changed
         except (OSError, ValueError) as exc:
             print(f"同步 NapCat 配置失败：{exc}")
             return 1
-        api = urlparse(onebot_endpoint())
-        if port_answers(api.hostname or "127.0.0.1", api.port or 80):
+        if napcat_running(directory, onebot_endpoint()):
             launch_napcat = False
             if changed:
                 print("NapCat 已经在跑，但配置刚改过：关掉 NapCat 窗口再跑一次本命令，新配置才生效。")
             else:
-                print("NapCat 已经在跑，不再重复启动。")
+                print("NapCat 的 API 或 WebUI 已在运行，不再启动第二个 QQ 登录进程。")
 
     if web_already:
+        from .connection_guard import launch_guard
+
+        if not args.no_napcat:
+            launch_guard()
         if not args.no_maibot:
             start_maibot()
         if launch_napcat:
@@ -181,6 +195,10 @@ def main(argv: list[str] | None = None) -> int:
             if server.should_exit:
                 return
             time.sleep(0.2)
+        from .connection_guard import launch_guard
+
+        if not args.no_napcat:
+            launch_guard()
         if not args.no_maibot:
             start_maibot()
         if not launch_napcat:
@@ -192,8 +210,7 @@ def main(argv: list[str] | None = None) -> int:
             return
         print(f"NapCat 已在新窗口启动{'（快速登录 ' + uin + '）' if uin else ''}；首次登录要在那个窗口扫码。")
 
-    if launch_napcat or not args.no_maibot:
-        threading.Thread(target=launch_when_ready, name="launcher", daemon=True).start()
+    threading.Thread(target=launch_when_ready, name="launcher", daemon=True).start()
     print(f"WebUI：http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}")
     server.run()
     return 0

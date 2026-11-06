@@ -12,9 +12,13 @@ import pytest
 
 # Set isolation before importing qqbot, whose package initializer loads settings.
 _runtime = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+_empty_wiki = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+_empty_mcf = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
 os.environ["QQBOT_ENV_FILE"] = str(Path(_runtime.name) / "absent.env")
 os.environ["QQBOT_DB"] = str(Path(_runtime.name) / "test.db")
 os.environ["NAPCAT_DIR"] = ""
+os.environ["UNDERLINE_WIKI_ROOT"] = _empty_wiki.name
+os.environ["MCFSKILL_ROOT"] = _empty_mcf.name
 for _name in (
     "DEEPSEEK_KEY_FILE",
     "QQBOT_EMBED_API_KEY_FILE",

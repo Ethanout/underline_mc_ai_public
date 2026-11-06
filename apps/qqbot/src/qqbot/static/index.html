@@ -15,8 +15,16 @@
 <label><input type="checkbox" name="refresh"> 重新读取已存在的消息</label>
 <button>开始任务</button>
 </form><pre id="status">就绪</pre>
+<h2>技术研究库</h2>
+<p>将 minecraft、vanilla-dev、programming 标签的条目导出到配置的 Wiki 根目录。AI 整理条目保留未验证标记。</p>
+<button id="export-research" type="button">导出技术研究到 Wiki</button>
+<button id="list-research" type="button">查看研究条目</button>
+<pre id="research-status">未加载</pre>
 <script>
 const form=document.querySelector('#form'), status=document.querySelector('#status');
 fetch('/api/health').then(r=>r.json()).then(h=>{if(h.onebot_endpoint)form.endpoint.value=h.onebot_endpoint}).catch(()=>{});
 form.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(form));d.diagnose=!!form.diagnose.checked;d.refresh=!!form.refresh.checked;let r=await fetch('/api/jobs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(d)});let j=await r.json();status.textContent=JSON.stringify(j,null,2);if(j.id){let timer=setInterval(async()=>{let x=await (await fetch('/api/jobs/'+j.id)).json();status.textContent=JSON.stringify(x,null,2);if(['succeeded','failed'].includes(x.status))clearInterval(timer)},1000)}};
+const researchStatus=document.querySelector('#research-status');
+document.querySelector('#export-research').onclick=async()=>{try{const r=await fetch('/api/research/export',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});researchStatus.textContent=JSON.stringify(await r.json(),null,2)}catch(e){researchStatus.textContent='导出失败：'+e.message}};
+document.querySelector('#list-research').onclick=async()=>{try{researchStatus.textContent=JSON.stringify(await (await fetch('/api/research')).json(),null,2)}catch(e){researchStatus.textContent='读取失败：'+e.message}};
 </script>

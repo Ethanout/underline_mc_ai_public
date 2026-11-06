@@ -47,6 +47,35 @@ def napcat_dir() -> Path | None:
     return Path(raw).expanduser() if raw else None
 
 
+def webui_address(directory: Path) -> tuple[str, int]:
+    """The WebUI listens even while QQ is offline or waiting to log in."""
+    config = read_config(directory / "config" / "webui.json")
+    host = str(config.get("host") or "127.0.0.1")
+    if host in {"0.0.0.0", "::"}:
+        host = "127.0.0.1"
+    return host, int(config.get("port", 6099))
+
+
+def sync_login_settings(directory: Path, uin: str) -> bool:
+    """Keep the selected account and offline diagnostics across restarts."""
+    if not uin.isdecimal():
+        raise ValueError("NAPCAT_UIN 必须是机器人 QQ 号")
+    changed = enable_login_persistence(directory)
+    webui_path = directory / "config" / "webui.json"
+    config = read_config(webui_path)
+    if str(config.get("autoLoginAccount", "")) != uin:
+        config["autoLoginAccount"] = uin
+        _write(webui_path, config)
+        changed = True
+    runtime_path = directory / "config" / f"napcat_{uin}.json"
+    runtime = read_config(runtime_path)
+    if runtime.get("fileLog") is not True or runtime.get("fileLogLevel") != "info":
+        runtime.update(fileLog=True, fileLogLevel="info")
+        _write(runtime_path, runtime)
+        changed = True
+    return changed
+
+
 def find_config(directory: Path, uin: str = "") -> Path:
     """Return NapCat's ``onebot11_<uin>.json``; ``uin`` picks one of several."""
     config_dir = directory / "config"
@@ -267,6 +296,7 @@ def launch(directory: Path, uin: str = "") -> subprocess.Popen:
     env = dict(os.environ)
     env.update(
         {
+            "NAPCAT_WORKDIR": str(directory),
             "NAPCAT_PATCH_PACKAGE": str(directory / "qqnt.json"),
             "NAPCAT_LOAD_PATH": str(load_path),
             "NAPCAT_INJECT_PATH": str(directory / "NapCatWinBootHook.dll"),

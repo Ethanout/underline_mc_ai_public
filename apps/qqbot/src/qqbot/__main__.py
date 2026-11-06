@@ -13,6 +13,18 @@ from __future__ import annotations
 import sys
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["install-official"]:
+        from .install_official import main as install_official_main
+
+        raise SystemExit(install_official_main())
+    if sys.argv[1:2] == ["connection-guard"]:
+        from .connection_guard import main as guard_main
+
+        raise SystemExit(guard_main())
+    if sys.argv[1:2] == ["export-wiki"]:
+        from .research import main as export_main
+
+        raise SystemExit(export_main(sys.argv[2:]))
     if sys.argv[1:2] == ["start"]:
         from .start import main as start_main
 

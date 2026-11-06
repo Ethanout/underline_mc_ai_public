@@ -56,6 +56,14 @@ class Store:
                 sha256 TEXT PRIMARY KEY, file_id TEXT, expires_at REAL, path TEXT);
             CREATE TABLE IF NOT EXISTS memory_changes (
                 id INTEGER PRIMARY KEY, memory_id TEXT, ts REAL, action TEXT, details TEXT);
+            CREATE TABLE IF NOT EXISTS research_sources (
+                id TEXT PRIMARY KEY, group_id TEXT, requested_url TEXT, url TEXT,
+                title TEXT, content TEXT, fetched_at REAL, task_id TEXT, truncated INTEGER);
+            CREATE INDEX IF NOT EXISTS research_sources_group ON research_sources(group_id, requested_url);
+            CREATE TABLE IF NOT EXISTS research_knowledge (
+                id TEXT PRIMARY KEY, group_id TEXT, title TEXT, content TEXT, tags TEXT,
+                source_ids TEXT, version TEXT, verification TEXT, task_id TEXT, created REAL, updated REAL);
+            CREATE INDEX IF NOT EXISTS research_knowledge_group ON research_knowledge(group_id, updated);
         """)
         self.db.commit()
         columns = {row[1] for row in self.db.execute("PRAGMA table_info(messages)")}

@@ -28,7 +28,8 @@ class WorkspaceTests(unittest.TestCase):
         client = TestClient(launcher.app, client=("127.0.0.1", 50000))
         response = client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("QQ Bot", response.text)
+        self.assertIn("机器人端管理", response.text)
+        self.assertIn("QQ Bot", client.get("/exports").text)
         self.assertEqual(client.get("/api/health").json()["status"], "ok")
 
     def test_task_prompt_keeps_rules_and_leaves_persona_to_maibot(self) -> None:
@@ -40,8 +41,9 @@ class WorkspaceTests(unittest.TestCase):
             "不编",
         ):
             self.assertIn(rule, TASK_SYSTEM_PROMPT)
-        # Persona lives in MaiBot's config now; a second one here would fight it.
-        self.assertNotIn("白猫", TASK_SYSTEM_PROMPT)
+        # Only a one-line identity; the full persona and style live in MaiBot's config.
+        self.assertIn("你是毯毯", TASK_SYSTEM_PROMPT)
+        self.assertNotIn("【人设】", TASK_SYSTEM_PROMPT)
         self.assertIn("要我再", TASK_SYSTEM_PROMPT)  # trailing offers are named as banned
         self.assertIn("任务上下文", build_task_prompt("检查来源"))
 

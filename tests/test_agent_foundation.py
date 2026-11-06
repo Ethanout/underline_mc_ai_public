@@ -103,7 +103,10 @@ class FoundationTests(unittest.TestCase):
         admin_names = {x["function"]["name"] for x in self.registry.tools_for(self.admin)}
         self.assertTrue(forbidden <= admin_names)
 
-    def test_knowledge_search_returns_tricks_with_sources_then_chat(self):
+    @patch("qqbot.docs.library")
+    def test_knowledge_search_returns_tricks_with_sources_then_chat(self, docs):
+        # This fixture checks group records, independently of local sibling wiki folders.
+        docs.return_value.search.return_value = []
         self.store.write(
             "INSERT INTO memory_state VALUES(?,?,?,?,?,?,?,?,?)",
             ("trick:a", "g", "related", "trick", "群友", "# 转视角 execute rotated", '["g:3"]', "{}", 1),

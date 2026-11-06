@@ -37,6 +37,22 @@ def read_token(path: str | Path = "") -> str:
     return token
 
 
+def read_group_bindings(service_url: str = DEFAULT_SERVICE_URL, timeout: float = 20) -> dict[str, str]:
+    """读取管理端公开的显式绑定；不请求或读取官方端密钥。"""
+    request = urllib.request.Request(service_url.rstrip("/") + "/api/endpoints")
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            payload = json.load(response)
+        return {
+            f"official:{endpoint['app_id']}:{openid}": legacy
+            for endpoint in payload["endpoints"] if endpoint.get("enabled") and endpoint.get("kind") == "qq_official"
+            for openid, legacy in endpoint.get("group_bindings", {}).items()
+        }
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise ServiceError("无法读取官方群绑定；仍可用列群返回的完整群ID定位，不要猜测旧群号") from exc
+
+
 def call_tool(
     tool: str,
     group_id: str,
@@ -59,7 +75,15 @@ def call_tool(
             return json.loads(response.read())
     except urllib.error.HTTPError as exc:
         reasons = {401: "插件 token 不对", 403: "这个群或这个工具不对插件开放"}
-        raise ServiceError(reasons.get(exc.code, f"服务返回 {exc.code}")) from exc
+        reason = reasons.get(exc.code, f"服务返回 {exc.code}")
+        if exc.code == 400:
+            try:
+                detail = json.loads(exc.read(4096)).get("detail")
+                if isinstance(detail, str):
+                    reason = detail[:1000].replace(token, "[凭证]") if token else detail[:1000]
+            except (ValueError, OSError, AttributeError):
+                pass
+        raise ServiceError(reason) from exc
     except (urllib.error.URLError, OSError) as exc:
         raise ServiceError("连不上毯毯的 web 服务，确认它在运行") from exc
 
@@ -89,11 +113,35 @@ def format_result(result: dict[str, Any], limit: int = MAX_RESULT_CHARS) -> str:
     if result.get("error"):
         return f"查询失败：{result['error']}"
     lines: list[str] = []
+    if result.get("knowledge_id"):
+        return (f"研究已保存，knowledge_id={result['knowledge_id']}；"
+                f"{result.get('verification')}；标签={','.join(result.get('tags', []))}；"
+                f"来源={','.join(result.get('source_ids', []))}"
+                + (f"；{result['workspace_warning']}" if result.get("workspace_warning") else ""))
+    if result.get("source_id"):
+        excerpt_size = max(100, limit - 650)
+        next_offset = (result.get("offset", 0) + excerpt_size if len(result["content"]) > excerpt_size
+                       else result.get("next_offset"))
+        return (f"source_id={result['source_id']}\n来源：{result['url']}\n"
+                f"标题：{result['title']}\n{result.get('status', '')}\n"
+                f"offset={result.get('offset', 0)}；next_offset={next_offset}\n"
+                f"正文截断：{bool(result.get('truncated')) or len(result['content']) > excerpt_size}\n"
+                f"正文：{result['content'][:excerpt_size]}")[:limit]
+    if result.get("status"):
+        lines.append(str(result["status"]))
+    if "next_offset" in result:
+        lines.append(f"当前文件夹，共 {result.get('total', 0)} 项；next_offset={result['next_offset']}；{result.get('scope', '')}")
     for row in result.get("results", []):
-        if row.get("label") == "聊天":
+        if row.get("group_id"):
+            lines.append(f"来源群：{row['group_id']}")
+        if row.get("kind") == "file":
+            lines.append(f"[文件 {row.get('file_name')}，file_id={row.get('file_id')}] 大小={row.get('file_size') or row.get('size')}；上传者={row.get('uploader_name')} ({row.get('uploader')})")
+        elif row.get("kind") == "folder":
+            lines.append(f"[文件夹 {row.get('folder_name')}，folder_id={row.get('folder_id')}] 文件数={row.get('total_file_count')}")
+        elif row.get("label") == "聊天":
             lines.append(f"[聊天 #{row.get('message_id')}] {_speaker(row)}：{_clip(_text(row))}")
         elif row.get("title"):
-            lines.append(f"[{row.get('label')}：{row.get('title')}，{(row.get('sources') or ['?'])[0]}] {_clip(row.get('content'), 900)}")
+            lines.append(f"[{row.get('label') or row.get('kind', '网页')}：{row.get('title')}，{(row.get('sources') or [row.get('url', '?')])[0]}] {_clip(row.get('content') or row.get('summary'), 900)}")
         else:
             sources = "、".join(str(s) for s in row.get("sources") or []) or "无"
             lines.append(f"[{row.get('label')}，来源 {sources}] {_clip(row.get('content'), 600)}")

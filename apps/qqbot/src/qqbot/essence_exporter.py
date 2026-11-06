@@ -37,7 +37,8 @@ def api_call(endpoint: str, token: str | None, action: str, params: dict[str, An
     if token:
         request.add_header("Authorization", f"Bearer {token}")
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:
+        timeout = max(1, float(os.environ.get("QQBOT_ONEBOT_TIMEOUT", "60")))
+        with urllib.request.urlopen(request, timeout=timeout) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError) as exc:
         raise RuntimeError(f"无法连接 OneBot 接口 {url}: {exc}") from exc

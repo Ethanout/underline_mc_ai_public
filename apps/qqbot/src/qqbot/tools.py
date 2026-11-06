@@ -222,8 +222,11 @@ class ToolRegistry:
         }
 
     def search_chat(self, task, args):
+        from .endpoints import Endpoints
+
         keyword = str(args.get("keyword", ""))
-        rows = self.store.messages(task["group_id"])
+        rows = [row for group in Endpoints(self.store).read_groups(task["group_id"])
+                for row in self.store.messages(group)]
         speaker = args.get("speaker")
         cutoff = self.store.clock() - max(0, float(args.get("days", 36500))) * 86400
         rows = [
@@ -342,8 +345,12 @@ class ToolRegistry:
         if not queries:
             raise ValueError("检索关键词不能为空")
         hits = {}
+        from .endpoints import Endpoints
+
+        groups = Endpoints(self.store).read_groups(task["group_id"], knowledge=True)
+        placeholders = ",".join("?" for _ in groups)
         rows = self.store.rows(
-            "SELECT * FROM memory_state WHERE group_id=? AND kind='trick'", (task["group_id"],)
+            f"SELECT * FROM memory_state WHERE group_id IN ({placeholders}) AND kind='trick'", groups
         )
         for row in rows:
             if any(query in row["content"] for query in queries):
@@ -353,10 +360,18 @@ class ToolRegistry:
                     "content": row["content"],
                     "sources": json.loads(row["sources"]),
                     "date": row["updated"],
+                    "group_id": row["group_id"],
                 }
         for query in queries:
             for row in docs.library().search(query, limit=4):
                 hits.setdefault(row["id"], row)
+        from .research import ResearchLibrary
+
+        research = ResearchLibrary(self.store)
+        for query in queries:
+            for group in groups:
+                for row in research.search(group, query):
+                    hits.setdefault(row["id"], {**row, "group_id": group})
         for query in queries:
             for row in self.search_chat(task, {"keyword": query})["messages"]:
                 hits[row["id"]] = {**row, "label": "聊天", "date": row["ts"]}

@@ -12,7 +12,7 @@ import unittest
 import urllib.error
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "maibot_plugin"))
@@ -105,6 +105,15 @@ class ClientTests(unittest.TestCase):
             self.assertEqual(client.read_token(path), "tok")
         self.assertEqual(client.DEFAULT_TOKEN_FILE, ROOT / "config" / "api" / "qqbot_plugin.txt")
 
+    def test_http_400_preserves_actionable_detail_without_credentials(self):
+        def refused(request, timeout):
+            body = json.dumps({"detail": "官方端不支持实时精华，请用 underline_search_knowledge secret-token"}).encode()
+            raise urllib.error.HTTPError(request.full_url, 400, "bad", {}, io.BytesIO(body))
+
+        with self.assertRaisesRegex(client.ServiceError, "underline_search_knowledge") as caught:
+            client.call_tool("read_essence", "official:123:one", {}, "secret-token", opener=refused)
+        self.assertNotIn("secret-token", str(caught.exception))
+
     def test_results_keep_sources_and_stay_short(self):
         text = client.format_result(
             {
@@ -123,6 +132,19 @@ class ClientTests(unittest.TestCase):
         clipped = client.format_result(many, limit=1000)
         self.assertLess(len(clipped), 1100)
         self.assertIn("没列出", clipped)
+
+    def test_research_results_keep_receipts_and_evidence(self):
+        read = client.format_result({"source_id": "web:abc", "title": "文档", "url": "https://example.com",
+                                     "content": "x" * 8000, "truncated": False})
+        self.assertIn("source_id=web:abc", read)
+        self.assertLessEqual(len(read), client.MAX_RESULT_CHARS)
+        saved = client.format_result({"knowledge_id": "research:abc", "verification": "未验证",
+                                      "tags": ["minecraft"], "source_ids": ["web:abc"]})
+        self.assertIn("knowledge_id=research:abc", saved)
+        self.assertIn("未验证", saved)
+        search = client.format_result({"results": [{"title": "官网", "url": "https://example.com", "summary": "真实摘要"}]})
+        self.assertIn("https://example.com", search)
+        self.assertIn("真实摘要", search)
 
 
 class PluginTests(unittest.TestCase):
@@ -172,10 +194,133 @@ class PluginTests(unittest.TestCase):
         )
         self.assertIn("只支持 QQ", private["content"])
 
+    def test_private_chat_can_look_into_a_named_group(self):
+        with patch.object(self.plugin_module, "call_tool", return_value={"messages": []}) as call, \
+                patch.object(self.plugin_module, "read_token", return_value="tok"):
+            asyncio.run(self.plugin.handle_search_chat(keyword="接水管", target_group="1060595795", user_id="42"))
+            asyncio.run(self.plugin.handle_read_essence(target_group="123", group_id="100000001"))
+        self.assertEqual([entry.args[1] for entry in call.call_args_list], ["1060595795", "123"])
+
+    def test_failed_queries_are_reported_as_failures(self):
+        with patch.object(self.plugin_module, "call_tool", side_effect=client.ServiceError("请用知识检索")), \
+                patch.object(self.plugin_module, "read_token", return_value="tok"):
+            result = asyncio.run(self.plugin.handle_read_essence(group_id="official:123:one", platform="qq_official"))
+        self.assertFalse(result["success"])
+        self.assertIn("请用知识检索", result["content"])
+
+    def test_save_requires_complete_receipt_and_reports_failed_promises(self):
+        for response in ({"error": "工作区写入失败"}, {"status": "saved"}):
+            with patch.object(self.plugin_module, "call_tool", return_value=response), \
+                    patch.object(self.plugin_module, "read_token", return_value="tok"):
+                result = asyncio.run(self.plugin.handle_save_research(group_id="123"))
+            self.assertFalse(result["success"])
+            self.assertIn("及时纠正", result["content"])
+
+    def test_chat_in_group_triggers_proactive_turn_with_cooldown(self):
+        calls = []
+
+        class Chat:
+            async def get_group_streams(self, platform="qq"):
+                return {"success": True, "streams": [
+                    {"stream_id": "s-1060595795", "group_id": "1060595795", "group_name": "接水管", "platform": "qq"},
+                    {"stream_id": "s-100000001", "group_id": "100000001", "group_name": "Underline", "platform": "qq"},
+                ]}
+
+        class Maisaka:
+            async def trigger_proactive(self, stream_id, intent, **kw):
+                calls.append((stream_id, intent))
+                return {"success": True}
+
+        self.plugin.ctx = types.SimpleNamespace(chat=Chat(), maisaka=Maisaka())
+        self.plugin._cross_sends = {}
+        run = lambda **kw: asyncio.run(self.plugin.handle_chat_in_group(**kw))["content"]  # noqa: E731
+        self.assertIn("尚未确认实际发送", run(target_group="1060595795", intent="跟大家打个招呼", user_id="42"))
+        self.assertIn("刚去过", run(target_group="1060595795", intent="再说一句"))
+        self.assertIn("去不了", run(target_group="999", intent="x"))
+        self.assertIn("直接说", run(target_group="100000001", intent="x", group_id="100000001"))
+        self.assertEqual(calls, [("s-1060595795", "跟大家打个招呼")])
+
+    def test_official_group_can_be_listed_and_targeted_by_explicit_legacy_binding(self):
+        group = "official:1905809752:0D3256A1E59EF023E38DEC9B7CEA4012"
+        chat = types.SimpleNamespace(get_group_streams=AsyncMock(return_value={"success": True, "streams": [
+            {"stream_id": "old", "group_id": "100000001", "platform": "qq", "group_name": "Underline"},
+            {"stream_id": "official", "group_id": group, "platform": "qq_official", "group_name": "官方Underline"},
+        ]}))
+        trigger = AsyncMock(return_value={"success": True})
+        self.plugin.ctx = types.SimpleNamespace(chat=chat, maisaka=types.SimpleNamespace(trigger_proactive=trigger))
+        self.plugin._cross_sends = {}
+        with patch.object(self.plugin_module, "read_group_bindings", return_value={group: "100000001"}):
+            listing = asyncio.run(self.plugin.handle_list_groups(platform="qq_official"))
+            result = asyncio.run(self.plugin.handle_chat_in_group(target_group="100000001", intent="测试打招呼",
+                                                                platform="qq_official", user_id="person"))
+        self.assertIn(group, listing["content"])
+        self.assertIn("已绑定旧群号=100000001", listing["content"])
+        self.assertEqual(chat.get_group_streams.call_args.kwargs, {"platform": "all_platforms"})
+        self.assertTrue(result["success"])
+        self.assertIn("尚未确认实际发送", result["content"])
+        self.assertEqual(trigger.call_args.args[:2], ("official", "测试打招呼"))
+
+    def test_official_full_id_works_when_binding_service_is_unavailable(self):
+        group = "official:123:OPENID"
+        self.plugin.ctx = types.SimpleNamespace(
+            chat=types.SimpleNamespace(get_group_streams=AsyncMock(return_value={"success": True, "streams": [
+                {"stream_id": "official", "group_id": group, "platform": "qq_official", "group_name": "group"}]})),
+            maisaka=types.SimpleNamespace(trigger_proactive=AsyncMock(return_value={"success": True})))
+        self.plugin._cross_sends = {}
+        with patch.object(self.plugin_module, "read_group_bindings", side_effect=client.ServiceError("绑定不可读")):
+            result = asyncio.run(self.plugin.handle_chat_in_group(target_group=group, intent="hello", platform="qq_official"))
+        self.assertTrue(result["success"])
+
+    def test_sdk_unwrapped_stream_list_is_accepted(self):
+        # 真实 SDK 成功时把 {"success": True, "streams": [...]} 解包成列表
+        group = "official:123:OPENID"
+        trigger = AsyncMock(return_value={"success": True})
+        self.plugin.ctx = types.SimpleNamespace(
+            chat=types.SimpleNamespace(get_group_streams=AsyncMock(return_value=[
+                {"stream_id": "official", "group_id": group, "platform": "qq_official", "group_name": "group"}])),
+            maisaka=types.SimpleNamespace(trigger_proactive=trigger))
+        self.plugin._cross_sends = {}
+        with patch.object(self.plugin_module, "read_group_bindings", return_value={}):
+            listing = asyncio.run(self.plugin.handle_list_groups())
+            result = asyncio.run(self.plugin.handle_chat_in_group(target_group=group, intent="hello", platform="qq_official"))
+        self.assertTrue(listing["success"])
+        self.assertIn(group, listing["content"])
+        self.assertTrue(result["success"])
+        self.assertEqual(trigger.call_args.args[:2], ("official", "hello"))
+
+    def test_ambiguous_group_and_failed_listing_never_submit_task(self):
+        chat = types.SimpleNamespace(get_group_streams=AsyncMock(return_value={"success": True, "streams": [
+            {"stream_id": str(index), "group_id": str(index), "platform": "qq", "group_name": "同名"}
+            for index in range(2)]}))
+        trigger = AsyncMock()
+        self.plugin.ctx = types.SimpleNamespace(chat=chat, maisaka=types.SimpleNamespace(trigger_proactive=trigger))
+        result = asyncio.run(self.plugin.handle_chat_in_group(target_group="同名", intent="hello"))
+        self.assertFalse(result["success"])
+        self.assertIn("歧义", result["content"])
+        chat.get_group_streams.return_value = {"success": False, "error": "unavailable"}
+        listing = asyncio.run(self.plugin.handle_list_groups())
+        self.assertFalse(listing["success"])
+        self.assertIn("读取本地群会话失败", listing["content"])
+        trigger.assert_not_called()
+
     def test_service_failure_is_reported_as_tool_content(self):
         with patch.object(self.plugin_module, "read_token", side_effect=client.ServiceError("读不到插件 token 文件")):
             result = asyncio.run(self.plugin.handle_read_essence(group_id="100000001"))
         self.assertEqual(result["content"], "查询失败：读不到插件 token 文件")
+
+    def test_research_tool_arguments_and_group_scope(self):
+        with patch.object(self.plugin_module, "call_tool", return_value={"results": []}) as call, \
+                patch.object(self.plugin_module, "read_token", return_value="tok"):
+            asyncio.run(self.plugin.handle_web_search(query="Minecraft 1.21 execute", group_id="123"))
+            asyncio.run(self.plugin.handle_web_read(url="https://example.com", group_id="123"))
+            asyncio.run(self.plugin.handle_save_research(title="经验", content="结论", source_ids="web:a, work:1",
+                                                       tags="minecraft, vanilla-dev", group_id="123"))
+            asyncio.run(self.plugin.handle_recall_work(date="2026-10-07", group_id="123"))
+        self.assertEqual([entry.args[0] for entry in call.call_args_list],
+                         ["research_search", "research_read", "save_research", "recall_work"])
+        self.assertTrue(all(entry.args[1] == "123" for entry in call.call_args_list))
+        self.assertEqual(call.call_args_list[2].args[2]["source_ids"], ["web:a", "work:1"])
+        self.assertEqual(call.call_args_list[2].args[2]["tags"], ["minecraft", "vanilla-dev"])
 
 
 if __name__ == "__main__":
